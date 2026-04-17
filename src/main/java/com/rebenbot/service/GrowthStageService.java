@@ -1,0 +1,170 @@
+package com.rebenbot.service;
+
+import com.rebenbot.model.WeatherData;
+import com.rebenbot.repository.WeatherDataRepository;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.stream.Collectors;
+
+/**
+ * Service for calculating vine growth stages using Growing Degree Days (GDD)
+ * and mapping to BBCH (Biologische Bundesanstalt, Chemische Industrie, Biologische Testmittel) codes
+ */
+@Service
+@Slf4j
+public class GrowthStageService {
+
+    @Autowired
+    private WeatherDataRepository weatherDataRepository;
+
+    // BBCH Growth Stages for Grapevines
+    public static final Map<String, String> BBCH_STAGES = Map.ofEntries(
+        Map.entry("BUD_SWELL", "BBCH 01 - Buds begin to swell"),
+        Map.entry("BUD_BREAK", "BBCH 03 - Buds break, first leaves separate"),
+        Map.entry("SHOOT_GROWTH", "BBCH 05 - Shoots grow, leaves unfold"),
+        Map.entry("LEAF_DEVELOPMENT", "BBCH 09 - Leaves fully developed"),
+        Map.entry("INFLORESCENCE_EMERGENCE", "BBCH 10 - Inflorescence emerges"),
+        Map.entry("FLOWERING", "BBCH 65 - Flowering"),
+        Map.entry("FRUIT_SET", "BBCH 71 - Fruit set"),
+        Map.entry("BERRY_GROWTH", "BBCH 77 - Berry growth, berries still firm"),
+        Map.entry("VERAISON", "BBCH 81 - Veraison - berries begin to color"),
+        Map.entry("BERRY_RIPE", "BBCH 89 - Berries ripe for harvest"),
+        Map.entry("DORMANT", "BBCH 95 - Dormant, leaves fall or fallen")
+    );
+
+    // GDD Thresholds for each stage (cumulative from spring)
+    private static final Map<String, Integer> GDD_THRESHOLDS = Map.ofEntries(
+        Map.entry("BUD_SWELL", 0),          // Start of season
+        Map.entry("BUD_BREAK", 50),         // ~50 GDD
+        Map.entry("SHOOT_GROWTH", 100),     // ~100 GDD
+        Map.entry("LEAF_DEVELOPMENT", 200), // ~200 GDD
+        Map.entry("INFLORESCENCE_EMERGENCE", 300), // ~300 GDD
+        Map.entry("FLOWERING", 400),        // ~400 GDD (typically mid-May/early June)
+        Map.entry("FRUIT_SET", 500),        // ~500 GDD
+        Map.entry("BERRY_GROWTH", 700),     // ~700 GDD
+        Map.entry("VERAISON", 1100),        // ~1100 GDD (typically late Aug/early Sept)
+        Map.entry("BERRY_RIPE", 1500),      // ~1500 GDD
+        Map.entry("DORMANT", 2500)          // End of season
+    );
+
+    /**
+     * Calculate Growing Degree Days from spring (April 1) to now
+     * GDD = sum of (daily avg temp - base temp), where base temp = 10°C for grapevines
+     */
+    public double calculateAccumulatedGdd() {
+        return calculateAccumulatedGdd(LocalDate.now());
+    }
+
+    /**
+     * Calculate accumulated GDD up to a specific date
+     */
+    public double calculateAccumulatedGdd(LocalDate toDate) {
+        LocalDateTime springStart = LocalDateTime.of(toDate.getYear(), 4, 1, 0, 0);
+        LocalDateTime endOfDay = LocalDateTime.of(toDate, java.time.LocalTime.of(23, 59, 59));
+
+        // Get all weather data from spring to target date
+        List<WeatherData> weatherData = weatherDataRepository.findAll().stream()
+                .filter(w -> w.getRecordedAt().isAfter(springStart) && w.getRecordedAt().isBefore(endOfDay))
+                .sorted(Comparator.comparing(WeatherData::getRecordedAt))
+                .collect(Collectors.toList());
+
+        if (weatherData.isEmpty()) {
+            log.warn("No weather data available for GDD calculation");
+            return 0.0;
+        }
+
+        // Group by day and calculate daily GDD
+        Map<LocalDate, List<WeatherData>> byDay = weatherData.stream()
+                .collect(Collectors.groupingBy(w -> w.getRecordedAt().toLocalDate()));
+
+        double totalGdd = 0.0;
+        final double BASE_TEMP = 10.0;  // Base temperature for grapevines
+
+        for (Map.Entry<LocalDate, List<WeatherData>> dayEntry : byDay.entrySet()) {
+            List<WeatherData> dayRecords = dayEntry.getValue();
+            
+            // Calculate daily average temperature
+            double avgTemp = dayRecords.stream()
+                    .mapToDouble(WeatherData::getTemperatureC)
+                    .average()
+                    .orElse(BASE_TEMP);
+
+            // GDD = (avg temp - base temp), minimum 0
+            double dailyGdd = Math.max(0, avgTemp - BASE_TEMP);
+            totalGdd += dailyGdd;
+        }
+
+        log.info("Accumulated GDD from April 1 to {}: {:.1f}", toDate, totalGdd);
+        return totalGdd;
+    }
+
+    /**
+     * Determine growth stage based on accumulated GDD
+     */
+    public String determineGrowthStageFromGdd(double gdd) {
+        String stage = "BUD_SWELL";  // Default
+
+        // Find appropriate stage based on GDD
+        for (Map.Entry<String, Integer> entry : GDD_THRESHOLDS.entrySet()) {
+            if (gdd >= entry.getValue()) {
+                stage = entry.getKey();
+            } else {
+                break;
+            }
+        }
+
+        return stage;
+    }
+
+    /**
+     * Get current growth stage - returns manual override if set, otherwise GDD-calculated
+     */
+    public GrowthStageInfo getCurrentGrowthStage(String manualGrowthStage, Boolean isManual) {
+        String stage;
+        boolean isManualOverride;
+
+        if (isManual != null && isManual && manualGrowthStage != null) {
+            // Use manual override
+            stage = manualGrowthStage;
+            isManualOverride = true;
+        } else {
+            // Calculate from GDD
+            double gdd = calculateAccumulatedGdd();
+            stage = determineGrowthStageFromGdd(gdd);
+            isManualOverride = false;
+        }
+
+        String description = BBCH_STAGES.getOrDefault(stage, "Unknown stage");
+        double gdd = calculateAccumulatedGdd();
+        Integer nextThreshold = GDD_THRESHOLDS.get(stage);
+        
+        return new GrowthStageInfo(stage, description, gdd, nextThreshold, isManualOverride);
+    }
+
+    /**
+     * DTO for growth stage information
+     */
+    public static class GrowthStageInfo {
+        public String stageCode;           // e.g., "FLOWERING"
+        public String stageBbchName;       // e.g., "BBCH 65 - Flowering"
+        public double currentGdd;          // Current accumulated GDD
+        public Integer gddThresholdForStage; // GDD needed to reach this stage
+        public boolean isManualOverride;   // Whether this is manually set or calculated
+
+        public GrowthStageInfo(String stageCode, String stageBbchName, double currentGdd, 
+                               Integer gddThresholdForStage, boolean isManualOverride) {
+            this.stageCode = stageCode;
+            this.stageBbchName = stageBbchName;
+            this.currentGdd = currentGdd;
+            this.gddThresholdForStage = gddThresholdForStage;
+            this.isManualOverride = isManualOverride;
+        }
+    }
+}

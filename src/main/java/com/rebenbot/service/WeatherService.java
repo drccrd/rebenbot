@@ -1,0 +1,184 @@
+package com.rebenbot.service;
+
+import com.rebenbot.model.WeatherData;
+import com.rebenbot.model.Vineyard;
+import com.rebenbot.repository.WeatherDataRepository;
+import com.rebenbot.repository.VineyardRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
+
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Comparator;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.ArrayList;
+
+/**
+ * Service to fetch weather data from Meteoblue API (used by vitimeteo.de).
+ * Fetches hourly weather data including temperature, humidity, and leaf wetness.
+ */
+@Service
+@Slf4j
+public class WeatherService {
+
+    private static final String METEOBLUE_API_URL = "https://my.meteoblue.com/packages/basic-1h_agro-1h";
+    private static final double DEFAULT_LAT = 49.18;
+    private static final double DEFAULT_LON = 8.67;
+    private static final int DEFAULT_ASL = 195;
+
+    @Value("${meteoblue.api.key:demo}")
+    private String apiKey;
+
+    @Autowired
+    private WeatherDataRepository weatherDataRepository;
+
+    @Autowired
+    private VineyardRepository vineyardRepository;
+
+    @Autowired
+    private RestTemplate restTemplate;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    public List<WeatherData> fetchAndStoreWeatherData(int forecastDays) {
+        try {
+            log.info("fetchAndStoreWeatherData called with forecastDays={}", forecastDays);
+            
+            if (restTemplate == null) {
+                log.error("RestTemplate is NULL - autowiring failed!");
+                return Collections.emptyList();
+            }
+            if (objectMapper == null) {
+                log.error("ObjectMapper is NULL - autowiring failed!");
+                return Collections.emptyList();
+            }
+            
+            String url = buildMeteoblueUrl(DEFAULT_LAT, DEFAULT_LON, forecastDays);
+            log.info("Built Meteoblue URL: {}", url);
+            log.info("API Key being used: {}", apiKey);
+            
+            log.info("Calling RestTemplate.getForObject...");
+            String response = restTemplate.getForObject(url, String.class);
+            log.info("Got response from Meteoblue, response length: {}", response != null ? response.length() : "null");
+            
+            if (response == null) {
+                log.error("RestTemplate returned null response");
+                return Collections.emptyList();
+            }
+            
+            Vineyard vineyard = getOrCreateDefaultVineyard();
+            return parseAndStoreWeatherData(response, vineyard);
+
+        } catch (Exception e) {
+            log.error("Error fetching weather data from Meteoblue: {}", e.getMessage(), e);
+            return Collections.emptyList();
+        }
+    }
+
+    private Vineyard getOrCreateDefaultVineyard() {
+        List<Vineyard> vineyards = vineyardRepository.findAll();
+        if (vineyards.isEmpty()) {
+            log.error("No vineyards found in database. Cannot store weather data.");
+            return null;
+        }
+        return vineyards.get(0);
+    }
+
+    private String buildMeteoblueUrl(double lat, double lon, int forecastDays) {
+        return String.format(
+                "%s?lat=%.2f&lon=%.2f&asl=%d&apikey=%s&format=json&forecast_days=%d&tz=Europe/Berlin",
+                METEOBLUE_API_URL,
+                lat,
+                lon,
+                DEFAULT_ASL,
+                apiKey,
+                forecastDays
+        );
+    }
+
+    private List<WeatherData> parseAndStoreWeatherData(String jsonResponse, Vineyard vineyard) throws Exception {
+        List<WeatherData> weatherDataList = new ArrayList<>();
+
+        if (vineyard == null) {
+            log.error("Vineyard is null, cannot store weather data");
+            return weatherDataList;
+        }
+
+        JsonNode root = objectMapper.readTree(jsonResponse);
+
+        log.info("Meteoblue response received, root keys: {}", root.fieldNames().hasNext() ? "has fields" : "empty");
+
+        JsonNode data1h = root.path("data_1h");
+        if (data1h.isMissingNode() || !data1h.isObject()) {
+            log.error("No data_1h object in Meteoblue response. Available keys: {}", root.fieldNames());
+            return weatherDataList;
+        }
+
+        String timezone = root.path("metadata").path("timezone").asText("Europe/Berlin");
+        ZoneId zoneId = ZoneId.of(timezone);
+
+        JsonNode times = data1h.path("time");
+        JsonNode temps = data1h.path("temperature");
+        JsonNode humidity = data1h.path("relativehumidity");
+        JsonNode precipitation = data1h.path("precipitation");
+        JsonNode windSpeed = data1h.path("windspeed");
+        JsonNode leafWetness = data1h.path("leafwetness");
+
+        if (!times.isArray() || times.size() == 0) {
+            log.error("Time array missing or empty. data_1h keys: {}", data1h.fieldNames());
+            return weatherDataList;
+        }
+
+        log.info("Found {} time records in Meteoblue response", times.size());
+
+        for (int i = 0; i < Math.min(times.size(), 168); i++) {
+            try {
+                long timestamp = times.get(i).asLong() * 1000;
+                LocalDateTime dateTime = LocalDateTime.ofInstant(
+                        Instant.ofEpochMilli(timestamp),
+                        zoneId
+                );
+
+                double tempValue = temps.has(i) && !temps.get(i).isNull() ? temps.get(i).asDouble() : 15.0;
+                double humidityValue = humidity.has(i) && !humidity.get(i).isNull() ? humidity.get(i).asDouble() : 60.0;
+                double precValue = precipitation.has(i) && !precipitation.get(i).isNull() ? precipitation.get(i).asDouble() : 0.0;
+                double windValue = windSpeed.has(i) && !windSpeed.get(i).isNull() ? windSpeed.get(i).asDouble() : 0.0;
+                double wetness = leafWetness.has(i) && !leafWetness.get(i).isNull() ? leafWetness.get(i).asDouble() : 0.0;
+
+                WeatherData data = WeatherData.builder()
+                        .vineyard(vineyard)
+                        .recordedAt(dateTime)
+                        .temperatureC(tempValue)
+                        .humidityPercent(humidityValue)
+                        .precipitationMm(precValue)
+                        .windSpeedMsec(windValue)
+                        .leafWetnessIndex(wetness)
+                        .build();
+
+                WeatherData saved = weatherDataRepository.save(data);
+                weatherDataList.add(saved);
+
+            } catch (Exception e) {
+                log.warn("Error parsing weather record at index {}: {}", i, e.getMessage());
+            }
+        }
+
+        log.info("Stored {} weather data records from Meteoblue", weatherDataList.size());
+        return weatherDataList;
+    }
+
+    public Optional<WeatherData> getLatestWeatherData() {
+        return weatherDataRepository.findAll().stream()
+                .max(Comparator.comparing(WeatherData::getRecordedAt));
+    }
+
+}
