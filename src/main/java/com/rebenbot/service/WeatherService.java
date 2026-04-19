@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.Collections;
 import java.util.List;
@@ -147,11 +148,30 @@ public class WeatherService {
 
         for (int i = 0; i < Math.min(times.size(), 168); i++) {
             try {
-                long timestamp = times.get(i).asLong() * 1000;
-                LocalDateTime dateTime = LocalDateTime.ofInstant(
-                        Instant.ofEpochMilli(timestamp),
-                        zoneId
-                );
+                JsonNode timeNode = times.get(i);
+                log.debug("Time node {}: value={}, isNumber={}, isTextual={}", i, timeNode, timeNode.isNumber(), timeNode.isTextual());
+                
+                LocalDateTime dateTime;
+                if (timeNode.isTextual()) {
+                    // Handle format: "2026-04-25 23:00" (space separator, not ISO T separator)
+                    String timeStr = timeNode.asText();
+                    log.debug("Parsing timestamp: {}", timeStr);
+                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+                    dateTime = LocalDateTime.parse(timeStr, formatter);
+                    log.debug("Converted to LocalDateTime: {}", dateTime);
+                } else if (timeNode.isNumber()) {
+                    // Handle Unix seconds (fallback)
+                    long timeValue = timeNode.asLong();
+                    log.debug("Unix timestamp (seconds): {}", timeValue);
+                    long timestamp = timeValue * 1000;  // Convert seconds to milliseconds
+                    dateTime = LocalDateTime.ofInstant(
+                            Instant.ofEpochMilli(timestamp),
+                            zoneId
+                    );
+                } else {
+                    log.warn("Unexpected time node type at index {}, skipping: {}", i, timeNode);
+                    continue;
+                }
 
                 double tempValue = temps.has(i) && !temps.get(i).isNull() ? temps.get(i).asDouble() : 15.0;
                 double humidityValue = humidity.has(i) && !humidity.get(i).isNull() ? humidity.get(i).asDouble() : 60.0;

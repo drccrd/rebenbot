@@ -72,41 +72,30 @@ public class GrowthStageService {
     public double calculateAccumulatedGdd(LocalDate toDate) {
         LocalDateTime springStart = LocalDateTime.of(toDate.getYear(), 4, 1, 0, 0);
         LocalDateTime endOfDay = LocalDateTime.of(toDate, java.time.LocalTime.of(23, 59, 59));
+        List<String> dateStrings = weatherDataRepository.findDistinctWeatherDates(springStart, endOfDay);
 
-        // Get all weather data from spring to target date
-        List<WeatherData> weatherData = weatherDataRepository.findByRecordedAtAfter(springStart);
-        weatherData = weatherData.stream()
-                .filter(w -> w.getRecordedAt().isBefore(endOfDay))
-                .sorted(Comparator.comparing(WeatherData::getRecordedAt))
-                .collect(Collectors.toList());
-
-        if (weatherData.isEmpty()) {
+        if (dateStrings.isEmpty()) {
             log.warn("No weather data available for GDD calculation");
             return 0.0;
         }
 
-        // Group by day and calculate daily GDD
-        Map<LocalDate, List<WeatherData>> byDay = weatherData.stream()
-                .collect(Collectors.groupingBy(w -> w.getRecordedAt().toLocalDate()));
-
         double totalGdd = 0.0;
-        final double BASE_TEMP = 10.0;  // Base temperature for grapevines
+        final double BASE_TEMP = 10.0;
 
-        for (Map.Entry<LocalDate, List<WeatherData>> dayEntry : byDay.entrySet()) {
-            List<WeatherData> dayRecords = dayEntry.getValue();
+        for (String dateStr : dateStrings) {
+            java.time.LocalDate date = java.time.LocalDate.parse(dateStr);
+            LocalDateTime dateTime = date.atStartOfDay();
+            Optional<Double> avgTemp = weatherDataRepository.findAverageTempForDate(dateTime);
             
-            // Calculate daily average temperature
-            double avgTemp = dayRecords.stream()
-                    .mapToDouble(WeatherData::getTemperatureC)
-                    .average()
-                    .orElse(BASE_TEMP);
-
-            // GDD = (avg temp - base temp), minimum 0
-            double dailyGdd = Math.max(0, avgTemp - BASE_TEMP);
+            double dailyAvgTemp = avgTemp.orElse(BASE_TEMP);
+            double dailyGdd = Math.max(0, dailyAvgTemp - BASE_TEMP);
             totalGdd += dailyGdd;
+            
+            log.debug("GDD for {}: avg_temp={:.1f}°C, daily_gdd={:.1f}°, total={:.1f}°", 
+                    date, dailyAvgTemp, dailyGdd, totalGdd);
         }
 
-        log.debug("Accumulated GDD from April 1 to {}: {:.1f}", toDate, totalGdd);
+        log.info("Accumulated GDD from April 1 to {}: {:.1f}", toDate, totalGdd);
         return totalGdd;
     }
 

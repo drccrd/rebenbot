@@ -20,14 +20,53 @@ import java.util.stream.Collectors;
 public class SprayTimingService {
 
     private final WeatherDataRepository weatherDataRepository;
+    private final WeatherService weatherService;
 
-    public SprayTimingService(WeatherDataRepository weatherDataRepository) {
+    public SprayTimingService(WeatherDataRepository weatherDataRepository, WeatherService weatherService) {
         this.weatherDataRepository = weatherDataRepository;
+        this.weatherService = weatherService;
     }
 
     public static final double SIGNIFICANT_RAIN_MM = 2.0;  // Rain threshold
     public static final double SPRAY_WINDOW_DRY_TIME_HOURS = 4.0;  // Hours needed dry after spray
     public static final double SPRAY_DURATION_HOURS = 2.5;  // Average spray duration (2-3 hours)
+    public static final int WEATHER_DATA_FRESHNESS_MINUTES = 30;  // Auto-fetch if older than this
+
+    /**
+     * Check if latest weather data is stale and auto-fetch if needed.
+     * TODO: Revisit this when development is finished - consider implementing a caching strategy or background job
+     * instead of blocking on every rainfall-summary request.
+     */
+    private void ensureFreshWeatherData() {
+        try {
+            Optional<WeatherData> latestData = weatherDataRepository.findTopByOrderByRecordedAtDesc();
+            
+            if (latestData.isEmpty()) {
+                log.info("No weather data found, fetching from Meteoblue...");
+                List<WeatherData> fetchedData = weatherService.fetchAndStoreWeatherData(7);
+                log.info("Fetched {} records from Meteoblue", fetchedData.size());
+                return;
+            }
+            
+            LocalDateTime latestRecordTime = latestData.get().getRecordedAt();
+            LocalDateTime staleThreshold = LocalDateTime.now().minusMinutes(WEATHER_DATA_FRESHNESS_MINUTES);
+            long minutesOld = java.time.temporal.ChronoUnit.MINUTES.between(latestRecordTime, LocalDateTime.now());
+            
+            if (latestRecordTime.isBefore(staleThreshold)) {
+                log.info("Weather data is {} minutes old (threshold: {}), fetching fresh data from Meteoblue...",
+                        minutesOld, WEATHER_DATA_FRESHNESS_MINUTES);
+                List<WeatherData> fetchedData = weatherService.fetchAndStoreWeatherData(7);
+                log.info("Fetched {} records from Meteoblue, latest timestamp now: {}", 
+                        fetchedData.size(),
+                        weatherDataRepository.findTopByOrderByRecordedAtDesc().map(WeatherData::getRecordedAt).orElse(null));
+            } else {
+                log.debug("Weather data is fresh ({} minutes old, threshold: {})", minutesOld, WEATHER_DATA_FRESHNESS_MINUTES);
+            }
+        } catch (Exception e) {
+            log.warn("Error checking/refreshing weather data: {}", e.getMessage(), e);
+            // Don't fail the whole request if weather refresh fails
+        }
+    }
 
     /**
      * Calculate weather-dependent incubation period for Peronospora.
@@ -86,17 +125,16 @@ public class SprayTimingService {
      * Returns cumulative precipitation in mm over the last 24 hours.
      */
     public double calculate24HourRainfall() {
+        ensureFreshWeatherData();
+        
         LocalDateTime cutoff = LocalDateTime.now().minusHours(24);
-        List<WeatherData> recentData = weatherDataRepository.findRecentData(cutoff);
-
-        double totalRainfall = 0.0;
-        for (WeatherData weather : recentData) {
-            if (weather.getPrecipitationMm() != null && weather.getRecordedAt().isBefore(LocalDateTime.now())) {
-                totalRainfall += weather.getPrecipitationMm();
-            }
+        Double totalRainfall = weatherDataRepository.sumPrecipitationSince(cutoff);
+        
+        if (totalRainfall == null) {
+            totalRainfall = 0.0;
         }
 
-        log.debug("24-hour cumulative rainfall: {} mm", String.format("%.2f", totalRainfall));
+        log.info("24-hour cumulative rainfall: {} mm (cutoff: {})", String.format("%.2f", totalRainfall), cutoff);
         return totalRainfall;
     }
 
@@ -106,15 +144,13 @@ public class SprayTimingService {
      */
     public Double getHoursSinceLastSignificantRain() {
         LocalDateTime cutoff = LocalDateTime.now().minusHours(72);
-        List<WeatherData> recentData = weatherDataRepository.findRecentData(cutoff);
-
-        for (WeatherData weather : recentData) {
-            if (weather.getPrecipitationMm() != null && weather.getPrecipitationMm() >= SIGNIFICANT_RAIN_MM) {
-                long hoursSinceLong = java.time.temporal.ChronoUnit.HOURS.between(weather.getRecordedAt(), LocalDateTime.now());
-                double hoursSince = (double) hoursSinceLong;
-                log.debug("Last significant rain (>{}mm) was {} hours ago", SIGNIFICANT_RAIN_MM, String.format("%.1f", hoursSince));
-                return hoursSince;
-            }
+        Optional<WeatherData> lastSignificantRain = weatherDataRepository.findMostRecentSignificantRain(cutoff, SIGNIFICANT_RAIN_MM);
+        
+        if (lastSignificantRain.isPresent()) {
+            long hoursSinceLong = java.time.temporal.ChronoUnit.HOURS.between(lastSignificantRain.get().getRecordedAt(), LocalDateTime.now());
+            double hoursSince = (double) hoursSinceLong;
+            log.debug("Last significant rain (>{}mm) was {} hours ago", SIGNIFICANT_RAIN_MM, String.format("%.1f", hoursSince));
+            return hoursSince;
         }
 
         log.debug("No significant rain (>{}mm) detected in last 72 hours", SIGNIFICANT_RAIN_MM);
@@ -134,18 +170,9 @@ public class SprayTimingService {
         Double hoursSinceRain = getHoursSinceLastSignificantRain();
         double sprayRecommendationHours = getRecommendedSprayTiming(incubationHours);
 
-        // Look ahead 48 hours for significant rain
-        LocalDateTime lookAhead = LocalDateTime.now().plusHours(48);
-        List<WeatherData> forecastData = weatherDataRepository.findByRecordedAtAfter(LocalDateTime.now());
-        forecastData = forecastData.stream()
-                .filter(w -> w.getRecordedAt().isBefore(lookAhead))
-                .sorted(Comparator.comparing(WeatherData::getRecordedAt))
-                .collect(Collectors.toList());
-
-        // Find if rain is coming
-        Optional<WeatherData> nextRain = forecastData.stream()
-                .filter(w -> w.getPrecipitationMm() != null && w.getPrecipitationMm() >= SIGNIFICANT_RAIN_MM)
-                .findFirst();
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime lookAhead = now.plusHours(48);
+        Optional<WeatherData> nextRain = weatherDataRepository.findNextSignificantRain(now, lookAhead, SIGNIFICANT_RAIN_MM);
 
         String strategy;
         String strategyReasoning;
@@ -166,8 +193,7 @@ public class SprayTimingService {
             windowReasoning = "Window closes 2 hours after rain - spore germination happens quickly on wet leaves";
         } else if (nextRain.isPresent()) {
             // Rain is coming - spray BEFORE rain
-            long hoursUntilRainLong = java.time.temporal.ChronoUnit.HOURS.between(
-                    LocalDateTime.now(), nextRain.get().getRecordedAt());
+            long hoursUntilRainLong = java.time.temporal.ChronoUnit.HOURS.between(now, nextRain.get().getRecordedAt());
             double hoursUntilRain = (double) hoursUntilRainLong;
             strategy = "BEFORE_RAIN";
             strategyReasoning = String.format("Rain forecast in %.0f hours. Must spray before rainfall to maximize fungicide coverage.", hoursUntilRain);
@@ -191,9 +217,9 @@ public class SprayTimingService {
 
         SprayWindow window = new SprayWindow(
                 strategy,
-                LocalDateTime.now().plusHours((long) preferredSprayHourFromNow),
-                LocalDateTime.now().plusHours((long) windowStartHours),
-                LocalDateTime.now().plusHours((long) windowEndHours),
+                now.plusHours((long) preferredSprayHourFromNow),
+                now.plusHours((long) windowStartHours),
+                now.plusHours((long) windowEndHours),
                 SPRAY_DURATION_HOURS,
                 SPRAY_WINDOW_DRY_TIME_HOURS
         );

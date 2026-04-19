@@ -37,4 +37,37 @@ public interface WeatherDataRepository extends JpaRepository<WeatherData, Long> 
      */
     @Query("SELECT w FROM WeatherData w WHERE w.vineyard.id = :vineyardId ORDER BY w.recordedAt DESC")
     List<WeatherData> findByVineyardIdOrderByRecordedAtDesc(@Param("vineyardId") Long vineyardId);
+    
+    /**
+     * Calculate total precipitation in the last 24 hours (database-level aggregation).
+     * Returns 0.0 if no data found.
+     */
+    @Query("SELECT COALESCE(SUM(w.precipitationMm), 0.0) FROM WeatherData w WHERE w.recordedAt > :startTime")
+    Double sumPrecipitationSince(@Param("startTime") LocalDateTime startTime);
+    
+    /**
+     * Find the most recent weather record with significant precipitation.
+     */
+    @Query("SELECT w FROM WeatherData w WHERE w.recordedAt > :startTime AND w.precipitationMm >= :minPrecipitation ORDER BY w.recordedAt DESC LIMIT 1")
+    Optional<WeatherData> findMostRecentSignificantRain(@Param("startTime") LocalDateTime startTime, @Param("minPrecipitation") Double minPrecipitation);
+    
+    /**
+     * Find next significant rain event (forecast).
+     */
+    @Query("SELECT w FROM WeatherData w WHERE w.recordedAt > :now AND w.recordedAt <= :endTime AND w.precipitationMm >= :minPrecipitation ORDER BY w.recordedAt ASC LIMIT 1")
+    Optional<WeatherData> findNextSignificantRain(@Param("now") LocalDateTime now, @Param("endTime") LocalDateTime endTime, @Param("minPrecipitation") Double minPrecipitation);
+    
+    /**
+     * Calculate average temperature for a specific date.
+     * Used for GDD calculations without fetching all records.
+     */
+    @Query("SELECT AVG(w.temperatureC) FROM WeatherData w WHERE DATE(w.recordedAt) = :date")
+    Optional<Double> findAverageTempForDate(@Param("date") LocalDateTime date);
+    
+    /**
+     * Get all distinct dates with weather data in a time range.
+     */
+    @Query(value = "SELECT DISTINCT CAST(w.recorded_at AS DATE) FROM weather_data w WHERE w.recorded_at >= :startTime AND w.recorded_at < :endTime ORDER BY CAST(w.recorded_at AS DATE)", nativeQuery = true)
+    List<String> findDistinctWeatherDates(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
 }
+
