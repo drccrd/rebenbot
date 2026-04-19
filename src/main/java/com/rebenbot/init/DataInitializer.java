@@ -92,7 +92,7 @@ public class DataInitializer implements CommandLineRunner {
             // Skip if weather data already exists and is recent (last hour)
             long weatherRecordCount = weatherDataRepository.count();
             if (weatherRecordCount > 0) {
-                log.info("Weather data already exists in database ({})", weatherRecordCount);
+                log.debug("Weather data already exists in database ({})", weatherRecordCount);
                 return;
             }
             

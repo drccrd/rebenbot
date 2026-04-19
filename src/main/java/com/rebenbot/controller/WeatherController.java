@@ -31,7 +31,7 @@ public class WeatherController {
     public ResponseEntity<?> fetchWeatherData(
             @RequestParam(value = "days", defaultValue = "7") int forecastDays) {
 
-        log.info("WeatherController.fetchWeatherData called with forecastDays={}", forecastDays);
+        log.debug("WeatherController.fetchWeatherData called with forecastDays={}", forecastDays);
 
         // Validate days parameter
         if (forecastDays < 1 || forecastDays > 7) {
@@ -60,7 +60,7 @@ public class WeatherController {
      */
     @GetMapping("/latest")
     public ResponseEntity<?> getLatestWeatherData() {
-        log.info("getLatestWeatherData called");
+        log.debug("getLatestWeatherData called");
         return weatherService.getLatestWeatherData()
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());

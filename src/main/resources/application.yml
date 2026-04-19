@@ -33,4 +33,4 @@ meteoblue:
 logging:
   level:
     root: INFO
-    com.rebenbot: DEBUG
+    com.rebenbot: INFO

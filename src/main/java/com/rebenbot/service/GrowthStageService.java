@@ -106,7 +106,7 @@ public class GrowthStageService {
             totalGdd += dailyGdd;
         }
 
-        log.info("Accumulated GDD from April 1 to {}: {:.1f}", toDate, totalGdd);
+        log.debug("Accumulated GDD from April 1 to {}: {:.1f}", toDate, totalGdd);
         return totalGdd;
     }
 

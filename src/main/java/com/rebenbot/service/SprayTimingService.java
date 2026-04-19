@@ -64,7 +64,7 @@ public class SprayTimingService {
         double incubationDays = baseDaysIncubation * adjustmentFactor;
         double incubationHours = incubationDays * 24.0;
 
-        log.info("Peronospora incubation period at {}°C: {} days ({} hours)",
+        log.debug("Peronospora incubation period at {}°C: {} days ({} hours)",
                 tempC, String.format("%.1f", incubationDays), String.format("%.1f", incubationHours));
 
         return incubationHours;
@@ -96,7 +96,7 @@ public class SprayTimingService {
             }
         }
 
-        log.info("24-hour cumulative rainfall: {} mm", String.format("%.2f", totalRainfall));
+        log.debug("24-hour cumulative rainfall: {} mm", String.format("%.2f", totalRainfall));
         return totalRainfall;
     }
 
@@ -112,12 +112,12 @@ public class SprayTimingService {
             if (weather.getPrecipitationMm() != null && weather.getPrecipitationMm() >= SIGNIFICANT_RAIN_MM) {
                 long hoursSinceLong = java.time.temporal.ChronoUnit.HOURS.between(weather.getRecordedAt(), LocalDateTime.now());
                 double hoursSince = (double) hoursSinceLong;
-                log.info("Last significant rain (>{}mm) was {} hours ago", SIGNIFICANT_RAIN_MM, String.format("%.1f", hoursSince));
+                log.debug("Last significant rain (>{}mm) was {} hours ago", SIGNIFICANT_RAIN_MM, String.format("%.1f", hoursSince));
                 return hoursSince;
             }
         }
 
-        log.info("No significant rain (>{}mm) detected in last 72 hours", SIGNIFICANT_RAIN_MM);
+        log.debug("No significant rain (>{}mm) detected in last 72 hours", SIGNIFICANT_RAIN_MM);
         return null;
     }
 
@@ -218,7 +218,7 @@ public class SprayTimingService {
         long hoursSinceLong = java.time.temporal.ChronoUnit.HOURS.between(lastSprayDate, LocalDateTime.now());
         double hoursSince = (double) hoursSinceLong;
         double daysSince = hoursSince / 24.0;
-        log.info("Days since last spray: {}", String.format("%.1f", daysSince));
+        log.debug("Days since last spray: {}", String.format("%.1f", daysSince));
         return daysSince;
     }
 

@@ -17,4 +17,5 @@ spring:
 
 logging:
   level:
-    org.flywaydb: DEBUG
+    root: INFO
+    org.flywaydb: INFO

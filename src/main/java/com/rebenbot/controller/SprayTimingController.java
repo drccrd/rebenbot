@@ -38,7 +38,7 @@ public class SprayTimingController {
             SprayTimingService.RainfallSummary summary = 
                     new SprayTimingService.RainfallSummary(rainfall24h, hoursSinceRain);
             
-            log.info("Rainfall summary: {}mm in 24h, {} hours since significant rain",
+            log.debug("Rainfall summary: {}mm in 24h, {} hours since significant rain",
                     String.format("%.1f", rainfall24h),
                     hoursSinceRain != null ? String.format("%.1f", hoursSinceRain) : "N/A");
             
@@ -77,7 +77,7 @@ public class SprayTimingController {
             double incubationHours = sprayTimingService.calculatePeronosporaIncubationPeriod(mockWeather);
             SprayTimingService.SprayWindow window = sprayTimingService.getOptimalSprayWindow(incubationHours);
             
-            log.info("Peronospora spray window: {} strategy, preferred time: {}", 
+            log.debug("Peronospora spray window: {} strategy, preferred time: {}", 
                     window.strategy, window.preferredTime);
             
             return ResponseEntity.ok(window);

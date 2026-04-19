@@ -48,7 +48,7 @@ public class FungicideManagementController {
      */
     @GetMapping("/frac-codes")
     public ResponseEntity<Map<String, Object>> getAllFracCodes() {
-        log.info("All FRAC codes requested");
+        log.debug("All FRAC codes requested");
 
         List<FracCode> fracCodes = fracCodeRepository.findAll();
 
@@ -77,7 +77,7 @@ public class FungicideManagementController {
      */
     @GetMapping("/by-frac/{fracCode}")
     public ResponseEntity<Map<String, Object>> getFungicidesByFracCode(@PathVariable String fracCode) {
-        log.info("Fungicides requested for FRAC code: {}", fracCode);
+        log.debug("Fungicides requested for FRAC code: {}", fracCode);
 
         List<FungicideProduct> fungicides = fungicideService.getFungicidesByFracCode(fracCode);
 
@@ -106,7 +106,7 @@ public class FungicideManagementController {
      */
     @GetMapping("/by-disease/{diseaseId}")
     public ResponseEntity<Map<String, Object>> getFungicidesForDisease(@PathVariable Long diseaseId) {
-        log.info("Fungicides requested for disease ID: {}", diseaseId);
+        log.debug("Fungicides requested for disease ID: {}", diseaseId);
 
         List<FungicideProduct> fungicides = fungicideService.getFungicidesForDisease(diseaseId);
 
@@ -135,7 +135,7 @@ public class FungicideManagementController {
      */
     @GetMapping("/{productId}/approvals")
     public ResponseEntity<Map<String, Object>> getFungicideApprovals(@PathVariable Long productId) {
-        log.info("Approvals requested for fungicide product ID: {}", productId);
+        log.debug("Approvals requested for fungicide product ID: {}", productId);
 
         Optional<FungicideProduct> product = fungicideProductRepository.findById(productId);
         if (product.isEmpty()) {
@@ -177,7 +177,7 @@ public class FungicideManagementController {
      */
     @GetMapping("/rotation-strategy/{diseaseId}")
     public ResponseEntity<Map<String, Object>> getRotationStrategy(@PathVariable Long diseaseId) {
-        log.info("Rotation strategy requested for disease ID: {}", diseaseId);
+        log.debug("Rotation strategy requested for disease ID: {}", diseaseId);
 
         Optional<RotationStrategy> strategy = rotationStrategyRepository.findByDiseaseId(diseaseId);
 
@@ -209,7 +209,7 @@ public class FungicideManagementController {
      */
     @GetMapping("/rotation-plan/{diseaseId}")
     public ResponseEntity<Map<String, Object>> getRotationPlan(@PathVariable Long diseaseId) {
-        log.info("Rotation plan requested for disease ID: {}", diseaseId);
+        log.debug("Rotation plan requested for disease ID: {}", diseaseId);
 
         Optional<FungalDisease> disease = fungalDiseaseRepository.findById(diseaseId);
         if (disease.isEmpty()) {

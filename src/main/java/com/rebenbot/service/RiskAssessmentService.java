@@ -61,7 +61,7 @@ public class RiskAssessmentService {
             risks.add(infectionRiskRepository.save(risk));
         }
 
-        log.info("Assessed risk for {} diseases at {}", risks.size(), weather.getRecordedAt());
+        log.debug("Assessed risk for {} diseases at {}", risks.size(), weather.getRecordedAt());
         return risks;
     }
 

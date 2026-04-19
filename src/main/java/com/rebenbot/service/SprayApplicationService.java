@@ -103,7 +103,7 @@ public class SprayApplicationService {
             dosageLiters *= 0.8;  // 20% reduction
         }
         
-        log.info("Calculated dosage: {:.2f}L for {} ares, fungicide: {}, growth stage: {}", 
+        log.debug("Calculated dosage: {:.2f}L for {} ares, fungicide: {}, growth stage: {}", 
                 dosageLiters, vineyardSizeAres, fungicideProduct.getName(), growthStageBbch);
         
         return dosageLiters;
@@ -164,7 +164,7 @@ public class SprayApplicationService {
                     "Risk at spray: %.0f%%, Peak following 72h: %.0f%%",
                     riskAtSpray * 100, peakRiskAfterSpray * 100));
             
-            log.info("Assessed spray effectiveness: {}% (risk at spray: {}%)", 
+            log.debug("Assessed spray effectiveness: {}% (risk at spray: {}%)", 
                     (int)(effectiveness * 100), (int)(riskAtSpray * 100));
             
             // Persist the efficacy assessment

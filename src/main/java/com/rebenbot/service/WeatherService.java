@@ -54,7 +54,7 @@ public class WeatherService {
 
     public List<WeatherData> fetchAndStoreWeatherData(int forecastDays) {
         try {
-            log.info("fetchAndStoreWeatherData called with forecastDays={}", forecastDays);
+            log.debug("fetchAndStoreWeatherData called with forecastDays={}", forecastDays);
             
             Vineyard vineyard = getOrCreateDefaultVineyard();
             if (vineyard == null) {
@@ -66,15 +66,15 @@ public class WeatherService {
             double lat = vineyard.getLatitude() != null ? vineyard.getLatitude() : DEFAULT_LAT;
             double lon = vineyard.getLongitude() != null ? vineyard.getLongitude() : DEFAULT_LON;
             
-            log.info("Fetching weather for vineyard '{}' at ({}, {})", vineyard.getName(), 
+            log.debug("Fetching weather for vineyard '{}' at ({}, {})", vineyard.getName(), 
                     String.format("%.4f", lat), String.format("%.4f", lon));
             
             String url = buildMeteoblueUrl(lat, lon, forecastDays);
-            log.info("Built Meteoblue URL: {}", url);
+            log.debug("Built Meteoblue URL: {}", url);
             
-            log.info("Calling RestTemplate.getForObject...");
+            log.debug("Calling RestTemplate.getForObject...");
             String response = restTemplate.getForObject(url, String.class);
-            log.info("Got response from Meteoblue, response length: {}", response != null ? response.length() : "null");
+            log.debug("Got response from Meteoblue, response length: {}", response != null ? response.length() : "null");
             
             if (response == null) {
                 log.error("RestTemplate returned null response");
@@ -120,7 +120,7 @@ public class WeatherService {
 
         JsonNode root = objectMapper.readTree(jsonResponse);
 
-        log.info("Meteoblue response received, root keys: {}", root.fieldNames().hasNext() ? "has fields" : "empty");
+        log.debug("Meteoblue response received, root keys: {}", root.fieldNames().hasNext() ? "has fields" : "empty");
 
         JsonNode data1h = root.path("data_1h");
         if (data1h.isMissingNode() || !data1h.isObject()) {
@@ -143,7 +143,7 @@ public class WeatherService {
             return weatherDataList;
         }
 
-        log.info("Found {} time records in Meteoblue response", times.size());
+        log.debug("Found {} time records in Meteoblue response", times.size());
 
         for (int i = 0; i < Math.min(times.size(), 168); i++) {
             try {

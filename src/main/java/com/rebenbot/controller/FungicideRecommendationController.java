@@ -31,7 +31,7 @@ public class FungicideRecommendationController {
      */
     @GetMapping("/all")
     public ResponseEntity<Map<String, Object>> getAllFungicides() {
-        log.info("All fungicides requested");
+        log.debug("All fungicides requested");
         
         var allProducts = fungicideProductRepository.findAll();
         
@@ -57,7 +57,7 @@ public class FungicideRecommendationController {
      */
     @GetMapping("/latest-recommendations")
     public ResponseEntity<Map<String, Object>> getLatestRecommendations() {
-        log.info("Latest recommendations requested");
+        log.debug("Latest recommendations requested");
         
         var allProducts = fungicideProductRepository.findAll();
         
