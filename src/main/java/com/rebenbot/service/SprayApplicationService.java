@@ -163,8 +163,11 @@ public class SprayApplicationService {
                     "Risk at spray: %.0f%%, Peak following 72h: %.0f%%",
                     riskAtSpray * 100, peakRiskAfterSpray * 100));
             
-            log.info("Assessed spray effectiveness: {:.0f}% (risk at spray: {:.0f}%)", 
-                    effectiveness * 100, riskAtSpray * 100);
+            log.info("Assessed spray effectiveness: {}% (risk at spray: {}%)", 
+                    (int)(effectiveness * 100), (int)(riskAtSpray * 100));
+            
+            // Persist the efficacy assessment
+            sprayApplicationRepository.save(spray);
         }
     }
 

@@ -82,6 +82,13 @@ public class DataInitializer implements CommandLineRunner {
 
     private void fetchInitialWeatherData() {
         try {
+            // Skip if weather data already exists and is recent (last hour)
+            long weatherRecordCount = weatherDataRepository.count();
+            if (weatherRecordCount > 0) {
+                log.info("Weather data already exists in database ({})", weatherRecordCount);
+                return;
+            }
+            
             log.info("Fetching initial weather data from Meteoblue API...");
             var weatherData = weatherService.fetchAndStoreWeatherData(7);
             log.info("Successfully fetched and stored {} weather records on startup", weatherData.size());
@@ -89,5 +96,8 @@ public class DataInitializer implements CommandLineRunner {
             log.warn("Failed to fetch weather data on startup: {}. Frontend can manually trigger fetch.", e.getMessage());
         }
     }
+
+    @Autowired
+    private com.rebenbot.repository.WeatherDataRepository weatherDataRepository;
 
 }

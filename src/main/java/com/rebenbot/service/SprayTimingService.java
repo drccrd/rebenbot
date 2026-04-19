@@ -96,7 +96,7 @@ public class SprayTimingService {
             }
         }
 
-        log.info("24-hour cumulative rainfall: {:.2f} mm", totalRainfall);
+        log.info("24-hour cumulative rainfall: {} mm", String.format("%.2f", totalRainfall));
         return totalRainfall;
     }
 
@@ -115,7 +115,7 @@ public class SprayTimingService {
             if (weather.getPrecipitationMm() != null && weather.getPrecipitationMm() >= SIGNIFICANT_RAIN_MM) {
                 long hoursSinceLong = java.time.temporal.ChronoUnit.HOURS.between(weather.getRecordedAt(), LocalDateTime.now());
                 double hoursSince = (double) hoursSinceLong;
-                log.info("Last significant rain (>{}mm) was {:.1f} hours ago", SIGNIFICANT_RAIN_MM, hoursSince);
+                log.info("Last significant rain (>{}mm) was {} hours ago", SIGNIFICANT_RAIN_MM, String.format("%.1f", hoursSince));
                 return hoursSince;
             }
         }
@@ -220,7 +220,7 @@ public class SprayTimingService {
         long hoursSinceLong = java.time.temporal.ChronoUnit.HOURS.between(lastSprayDate, LocalDateTime.now());
         double hoursSince = (double) hoursSinceLong;
         double daysSince = hoursSince / 24.0;
-        log.info("Days since last spray: {:.1f}", daysSince);
+        log.info("Days since last spray: {}", String.format("%.1f", daysSince));
         return daysSince;
     }
 

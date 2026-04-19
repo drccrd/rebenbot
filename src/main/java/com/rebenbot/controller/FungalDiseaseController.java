@@ -1,7 +1,9 @@
 package com.rebenbot.controller;
 
+import com.rebenbot.controller.dto.FungalDiseaseRequest;
 import com.rebenbot.model.FungalDisease;
 import com.rebenbot.repository.FungalDiseaseRepository;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -29,7 +31,13 @@ public class FungalDiseaseController {
     }
 
     @PostMapping
-    public ResponseEntity<FungalDisease> createDisease(@RequestBody FungalDisease disease) {
+    public ResponseEntity<FungalDisease> createDisease(@Valid @RequestBody FungalDiseaseRequest request) {
+        FungalDisease disease = FungalDisease.builder()
+                .commonName(request.getCommonName())
+                .scientificName(request.getScientificName())
+                .description(request.getDescription())
+                .build();
+        
         FungalDisease saved = diseaseRepository.save(disease);
         return ResponseEntity.ok(saved);
     }

@@ -121,7 +121,7 @@ public class RiskAssessmentService {
         Map<LocalDateTime, Map<String, RiskCalculator.RiskScore>> forecast = new LinkedHashMap<>();
 
         // Get all weather data for the next N days
-        LocalDateTime cutoff = LocalDateTime.now().minusDays(days);
+        LocalDateTime cutoff = LocalDateTime.now().plusDays(days);
         List<WeatherData> weatherForecast = weatherDataRepository.findAll().stream()
                 .filter(w -> w.getRecordedAt().isAfter(cutoff))
                 .sorted(Comparator.comparing(WeatherData::getRecordedAt))

@@ -1,13 +1,14 @@
 package com.rebenbot.controller;
 
+import com.rebenbot.controller.dto.SprayApplicationRequest;
 import com.rebenbot.model.SprayApplication;
 import com.rebenbot.service.SprayApplicationService;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.util.*;
 
 @RestController
@@ -36,20 +37,18 @@ public class SprayApplicationController {
      * }
      */
     @PostMapping("/record")
-    public ResponseEntity<?> recordSpray(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<?> recordSpray(@Valid @RequestBody SprayApplicationRequest request) {
         try {
-            Long vineyardId = ((Number) request.get("vineyardId")).longValue();
-            Long fungicideId = ((Number) request.get("fungicideId")).longValue();
-            Long diseaseId = ((Number) request.get("diseaseId")).longValue();
-            LocalDateTime appDate = LocalDateTime.parse((String) request.get("applicationDate"));
-            String bbch = (String) request.get("growthStageBbch");
-            Double tempC = request.get("temperatureC") != null ? ((Number) request.get("temperatureC")).doubleValue() : null;
-            Double humidity = request.get("humidityPercent") != null ? ((Number) request.get("humidityPercent")).doubleValue() : null;
-            Double wind = request.get("windSpeedMsec") != null ? ((Number) request.get("windSpeedMsec")).doubleValue() : null;
-            String notes = (String) request.get("notes");
-
             SprayApplication spray = sprayApplicationService.recordSpray(
-                    vineyardId, fungicideId, diseaseId, appDate, bbch, tempC, humidity, wind, notes);
+                    request.getVineyardId(), 
+                    request.getFungicideId(), 
+                    request.getDiseaseId(), 
+                    request.getApplicationDate(), 
+                    request.getGrowthStageBbch(), 
+                    request.getTemperatureC(), 
+                    request.getHumidityPercent(), 
+                    request.getWindSpeedMsec(), 
+                    request.getNotes());
 
             // Assess effectiveness after recording
             sprayApplicationService.assessSprayEffectiveness(spray);

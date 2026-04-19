@@ -53,18 +53,21 @@ public class WeatherService {
         try {
             log.info("fetchAndStoreWeatherData called with forecastDays={}", forecastDays);
             
-            if (restTemplate == null) {
-                log.error("RestTemplate is NULL - autowiring failed!");
-                return Collections.emptyList();
-            }
-            if (objectMapper == null) {
-                log.error("ObjectMapper is NULL - autowiring failed!");
+            Vineyard vineyard = getOrCreateDefaultVineyard();
+            if (vineyard == null) {
+                log.error("No vineyard found. Cannot fetch weather data.");
                 return Collections.emptyList();
             }
             
-            String url = buildMeteoblueUrl(DEFAULT_LAT, DEFAULT_LON, forecastDays);
+            // Use vineyard coordinates if available, otherwise use defaults
+            double lat = vineyard.getLatitude() != null ? vineyard.getLatitude() : DEFAULT_LAT;
+            double lon = vineyard.getLongitude() != null ? vineyard.getLongitude() : DEFAULT_LON;
+            
+            log.info("Fetching weather for vineyard '{}' at ({}, {})", vineyard.getName(), 
+                    String.format("%.4f", lat), String.format("%.4f", lon));
+            
+            String url = buildMeteoblueUrl(lat, lon, forecastDays);
             log.info("Built Meteoblue URL: {}", url);
-            log.info("API Key being used: {}", apiKey);
             
             log.info("Calling RestTemplate.getForObject...");
             String response = restTemplate.getForObject(url, String.class);
@@ -75,7 +78,6 @@ public class WeatherService {
                 return Collections.emptyList();
             }
             
-            Vineyard vineyard = getOrCreateDefaultVineyard();
             return parseAndStoreWeatherData(response, vineyard);
 
         } catch (Exception e) {

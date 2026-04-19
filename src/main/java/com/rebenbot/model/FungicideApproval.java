@@ -46,6 +46,9 @@ public class FungicideApproval {
     @Enumerated(EnumType.STRING)
     @Column(name = "approval_status")
     private ApprovalStatus approvalStatus;  // ACTIVE, PENDING, EXPIRED
+    // IMPORTANT: Enum values MUST match DB CHECK constraint in migration.
+    // If enum values change, update V1__initial_schema.sql CHECK constraint:
+    // CHECK (approval_status IN ('ACTIVE', 'PENDING', 'EXPIRED'))
 
     private String notes;
 

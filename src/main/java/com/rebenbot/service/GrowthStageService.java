@@ -40,7 +40,8 @@ public class GrowthStageService {
     );
 
     // GDD Thresholds for each stage (cumulative from spring)
-    private static final Map<String, Integer> GDD_THRESHOLDS = Map.ofEntries(
+    // Must be a sorted map to ensure deterministic ordering
+    private static final List<Map.Entry<String, Integer>> GDD_THRESHOLDS = List.of(
         Map.entry("BUD_SWELL", 0),          // Start of season
         Map.entry("BUD_BREAK", 50),         // ~50 GDD
         Map.entry("SHOOT_GROWTH", 100),     // ~100 GDD
@@ -111,8 +112,8 @@ public class GrowthStageService {
     public String determineGrowthStageFromGdd(double gdd) {
         String stage = "BUD_SWELL";  // Default
 
-        // Find appropriate stage based on GDD
-        for (Map.Entry<String, Integer> entry : GDD_THRESHOLDS.entrySet()) {
+        // Find appropriate stage based on GDD (iterate in order, highest matching stage wins)
+        for (Map.Entry<String, Integer> entry : GDD_THRESHOLDS) {
             if (gdd >= entry.getValue()) {
                 stage = entry.getKey();
             } else {
@@ -143,7 +144,11 @@ public class GrowthStageService {
 
         String description = BBCH_STAGES.getOrDefault(stage, "Unknown stage");
         double gdd = calculateAccumulatedGdd();
-        Integer nextThreshold = GDD_THRESHOLDS.get(stage);
+        Integer nextThreshold = GDD_THRESHOLDS.stream()
+                .filter(entry -> entry.getKey().equals(stage))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElse(null);
         
         return new GrowthStageInfo(stage, description, gdd, nextThreshold, isManualOverride);
     }
