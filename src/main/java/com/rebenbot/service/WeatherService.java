@@ -32,6 +32,7 @@ public class WeatherService {
     private static final double DEFAULT_LAT = 49.18;
     private static final double DEFAULT_LON = 8.67;
     private static final int DEFAULT_ASL = 195;
+    private static final int WEATHER_DATA_FRESHNESS_MINUTES = 30;
 
     private final String apiKey;
     private final WeatherDataRepository weatherDataRepository;
@@ -199,7 +200,37 @@ public class WeatherService {
         return weatherDataList;
     }
 
+    /**
+     * Check if latest weather data is stale and auto-fetch if needed.
+     */
+    private void ensureFreshWeatherData() {
+        try {
+            Optional<WeatherData> latestData = weatherDataRepository.findTopByOrderByRecordedAtDesc();
+            
+            if (latestData.isEmpty()) {
+                log.info("No weather data found, fetching from Meteoblue...");
+                fetchAndStoreWeatherData(7);
+                return;
+            }
+            
+            LocalDateTime latestRecordTime = latestData.get().getRecordedAt();
+            LocalDateTime staleThreshold = LocalDateTime.now().minusMinutes(WEATHER_DATA_FRESHNESS_MINUTES);
+            long minutesOld = java.time.temporal.ChronoUnit.MINUTES.between(latestRecordTime, LocalDateTime.now());
+            
+            if (latestRecordTime.isBefore(staleThreshold)) {
+                log.info("Weather data is {} minutes old (threshold: {}), fetching fresh data from Meteoblue...",
+                        minutesOld, WEATHER_DATA_FRESHNESS_MINUTES);
+                fetchAndStoreWeatherData(7);
+            } else {
+                log.debug("Weather data is fresh ({} minutes old, threshold: {})", minutesOld, WEATHER_DATA_FRESHNESS_MINUTES);
+            }
+        } catch (Exception e) {
+            log.warn("Error checking/refreshing weather data: {}", e.getMessage());
+        }
+    }
+
     public Optional<WeatherData> getLatestWeatherData() {
+        ensureFreshWeatherData();
         return weatherDataRepository.findTopByOrderByRecordedAtDesc();
     }
 

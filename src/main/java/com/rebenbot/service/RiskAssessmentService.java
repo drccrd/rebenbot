@@ -24,20 +24,23 @@ public class RiskAssessmentService {
     private final WeatherDataRepository weatherDataRepository;
     private final FungalDiseaseRepository diseaseRepository;
     private final InfectionRiskRepository infectionRiskRepository;
+    private final WeatherService weatherService;
 
     public RiskAssessmentService(WeatherDataRepository weatherDataRepository,
                                  FungalDiseaseRepository diseaseRepository,
-                                 InfectionRiskRepository infectionRiskRepository) {
+                                 InfectionRiskRepository infectionRiskRepository,
+                                 WeatherService weatherService) {
         this.weatherDataRepository = weatherDataRepository;
         this.diseaseRepository = diseaseRepository;
         this.infectionRiskRepository = infectionRiskRepository;
+        this.weatherService = weatherService;
     }
 
     /**
      * Assess current infection risk for all diseases based on latest weather data.
      */
     public List<InfectionRisk> assessCurrentRisk() {
-        Optional<WeatherData> latestWeather = weatherDataRepository.findTopByOrderByRecordedAtDesc();
+        Optional<WeatherData> latestWeather = weatherService.getLatestWeatherData();
 
         if (latestWeather.isEmpty()) {
             log.warn("No weather data available for risk assessment");
@@ -112,16 +115,24 @@ public class RiskAssessmentService {
     }
 
     /**
-     * Forecast risk for the next 7 days based on weather forecast.
+     * Forecast risk for the next N days based on weather forecast.
+     * Ensures weather data is fresh before generating forecast.
      */
     public Map<LocalDateTime, Map<String, RiskCalculator.RiskScore>> forecastRiskForDays(int days) {
         Map<LocalDateTime, Map<String, RiskCalculator.RiskScore>> forecast = new LinkedHashMap<>();
 
-        // Get all weather data for the next N days
-        LocalDateTime cutoff = LocalDateTime.now().plusDays(days);
-        List<WeatherData> weatherForecast = weatherDataRepository.findByRecordedAtAfter(cutoff);
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime forecastEnd = now.plusDays(days);
+        
+        // Query for weather forecast starting from now through the next N days
+        List<WeatherData> weatherForecast = weatherDataRepository.findByRecordedAtAfter(now);
 
         for (WeatherData weather : weatherForecast) {
+            // Only include forecast data within the requested window
+            if (weather.getRecordedAt().isAfter(forecastEnd)) {
+                break;
+            }
+            
             Map<String, RiskCalculator.RiskScore> risksByDisease = new LinkedHashMap<>();
 
             risksByDisease.put("Peronospora", RiskCalculator.calculatePeronosporaRisk(weather));

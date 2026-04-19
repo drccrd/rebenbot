@@ -25,46 +25,9 @@ public class SprayTimingService {
         this.weatherService = weatherService;
     }
 
-    public static final double SIGNIFICANT_RAIN_MM = 2.0;  // Rain threshold
-    public static final double SPRAY_WINDOW_DRY_TIME_HOURS = 4.0;  // Hours needed dry after spray
-    public static final double SPRAY_DURATION_HOURS = 2.5;  // Average spray duration (2-3 hours)
-    public static final int WEATHER_DATA_FRESHNESS_MINUTES = 30;  // Auto-fetch if older than this
-
-    /**
-     * Check if latest weather data is stale and auto-fetch if needed.
-     * TODO: Revisit this when development is finished - consider implementing a caching strategy or background job
-     * instead of blocking on every rainfall-summary request.
-     */
-    private void ensureFreshWeatherData() {
-        try {
-            Optional<WeatherData> latestData = weatherDataRepository.findTopByOrderByRecordedAtDesc();
-            
-            if (latestData.isEmpty()) {
-                log.info("No weather data found, fetching from Meteoblue...");
-                List<WeatherData> fetchedData = weatherService.fetchAndStoreWeatherData(7);
-                log.info("Fetched {} records from Meteoblue", fetchedData.size());
-                return;
-            }
-            
-            LocalDateTime latestRecordTime = latestData.get().getRecordedAt();
-            LocalDateTime staleThreshold = LocalDateTime.now().minusMinutes(WEATHER_DATA_FRESHNESS_MINUTES);
-            long minutesOld = java.time.temporal.ChronoUnit.MINUTES.between(latestRecordTime, LocalDateTime.now());
-            
-            if (latestRecordTime.isBefore(staleThreshold)) {
-                log.info("Weather data is {} minutes old (threshold: {}), fetching fresh data from Meteoblue...",
-                        minutesOld, WEATHER_DATA_FRESHNESS_MINUTES);
-                List<WeatherData> fetchedData = weatherService.fetchAndStoreWeatherData(7);
-                log.info("Fetched {} records from Meteoblue, latest timestamp now: {}", 
-                        fetchedData.size(),
-                        weatherDataRepository.findTopByOrderByRecordedAtDesc().map(WeatherData::getRecordedAt).orElse(null));
-            } else {
-                log.debug("Weather data is fresh ({} minutes old, threshold: {})", minutesOld, WEATHER_DATA_FRESHNESS_MINUTES);
-            }
-        } catch (Exception e) {
-            log.warn("Error checking/refreshing weather data: {}", e.getMessage(), e);
-            // Don't fail the whole request if weather refresh fails
-        }
-    }
+    public static final double SIGNIFICANT_RAIN_MM = 2.0;
+    public static final double SPRAY_WINDOW_DRY_TIME_HOURS = 4.0;
+    public static final double SPRAY_DURATION_HOURS = 2.5;
 
     /**
      * Calculate weather-dependent incubation period for Peronospora.
@@ -123,8 +86,6 @@ public class SprayTimingService {
      * Returns cumulative precipitation in mm over the last 24 hours.
      */
     public double calculate24HourRainfall() {
-        ensureFreshWeatherData();
-        
         LocalDateTime cutoff = LocalDateTime.now().minusHours(24);
         Double totalRainfall = weatherDataRepository.sumPrecipitationSince(cutoff);
         
