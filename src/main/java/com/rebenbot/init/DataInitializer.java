@@ -4,8 +4,8 @@ import com.rebenbot.model.FungalDisease;
 import com.rebenbot.model.Vineyard;
 import com.rebenbot.repository.FungalDiseaseRepository;
 import com.rebenbot.repository.VineyardRepository;
+import com.rebenbot.repository.WeatherDataRepository;
 import com.rebenbot.service.WeatherService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import lombok.extern.slf4j.Slf4j;
@@ -18,14 +18,21 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class DataInitializer implements CommandLineRunner {
 
-    @Autowired
-    private VineyardRepository vineyardRepository;
+    private final VineyardRepository vineyardRepository;
+    private final FungalDiseaseRepository diseaseRepository;
+    private final WeatherService weatherService;
+    private final WeatherDataRepository weatherDataRepository;
 
-    @Autowired
-    private FungalDiseaseRepository diseaseRepository;
-
-    @Autowired
-    private WeatherService weatherService;
+    public DataInitializer(
+            VineyardRepository vineyardRepository,
+            FungalDiseaseRepository diseaseRepository,
+            WeatherService weatherService,
+            WeatherDataRepository weatherDataRepository) {
+        this.vineyardRepository = vineyardRepository;
+        this.diseaseRepository = diseaseRepository;
+        this.weatherService = weatherService;
+        this.weatherDataRepository = weatherDataRepository;
+    }
 
     @Override
     public void run(String... args) {
@@ -96,8 +103,5 @@ public class DataInitializer implements CommandLineRunner {
             log.warn("Failed to fetch weather data on startup: {}. Frontend can manually trigger fetch.", e.getMessage());
         }
     }
-
-    @Autowired
-    private com.rebenbot.repository.WeatherDataRepository weatherDataRepository;
 
 }

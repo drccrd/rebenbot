@@ -6,7 +6,6 @@ import com.rebenbot.model.WeatherData;
 import com.rebenbot.repository.FungalDiseaseRepository;
 import com.rebenbot.repository.InfectionRiskRepository;
 import com.rebenbot.repository.WeatherDataRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
 
@@ -22,21 +21,23 @@ import java.util.stream.Collectors;
 @Slf4j
 public class RiskAssessmentService {
 
-    @Autowired
-    private WeatherDataRepository weatherDataRepository;
+    private final WeatherDataRepository weatherDataRepository;
+    private final FungalDiseaseRepository diseaseRepository;
+    private final InfectionRiskRepository infectionRiskRepository;
 
-    @Autowired
-    private FungalDiseaseRepository diseaseRepository;
-
-    @Autowired
-    private InfectionRiskRepository infectionRiskRepository;
+    public RiskAssessmentService(WeatherDataRepository weatherDataRepository,
+                                 FungalDiseaseRepository diseaseRepository,
+                                 InfectionRiskRepository infectionRiskRepository) {
+        this.weatherDataRepository = weatherDataRepository;
+        this.diseaseRepository = diseaseRepository;
+        this.infectionRiskRepository = infectionRiskRepository;
+    }
 
     /**
      * Assess current infection risk for all diseases based on latest weather data.
      */
     public List<InfectionRisk> assessCurrentRisk() {
-        Optional<WeatherData> latestWeather = weatherDataRepository.findAll().stream()
-                .max(Comparator.comparing(WeatherData::getRecordedAt));
+        Optional<WeatherData> latestWeather = weatherDataRepository.findTopByOrderByRecordedAtDesc();
 
         if (latestWeather.isEmpty()) {
             log.warn("No weather data available for risk assessment");
@@ -95,18 +96,14 @@ public class RiskAssessmentService {
      */
     public List<InfectionRisk> getRiskHistory(int hoursBack) {
         LocalDateTime cutoff = LocalDateTime.now().minusHours(hoursBack);
-        return infectionRiskRepository.findAll().stream()
-                .filter(r -> r.getAssessedAt().isAfter(cutoff))
-                .sorted(Comparator.comparing(InfectionRisk::getAssessedAt).reversed())
-                .collect(Collectors.toList());
+        return infectionRiskRepository.findRecentRisks(cutoff);
     }
 
     /**
      * Get the latest risk assessment for each disease.
      */
     public Map<String, InfectionRisk> getLatestRiskByDisease() {
-        return infectionRiskRepository.findAll().stream()
-                .sorted(Comparator.comparing(InfectionRisk::getAssessedAt).reversed())
+        return infectionRiskRepository.findLatestRisksByAllDiseases().stream()
                 .collect(Collectors.toMap(
                         r -> r.getDisease().getCommonName(),
                         r -> r,
@@ -122,10 +119,7 @@ public class RiskAssessmentService {
 
         // Get all weather data for the next N days
         LocalDateTime cutoff = LocalDateTime.now().plusDays(days);
-        List<WeatherData> weatherForecast = weatherDataRepository.findAll().stream()
-                .filter(w -> w.getRecordedAt().isAfter(cutoff))
-                .sorted(Comparator.comparing(WeatherData::getRecordedAt))
-                .collect(Collectors.toList());
+        List<WeatherData> weatherForecast = weatherDataRepository.findByRecordedAtAfter(cutoff);
 
         for (WeatherData weather : weatherForecast) {
             Map<String, RiskCalculator.RiskScore> risksByDisease = new LinkedHashMap<>();

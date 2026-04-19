@@ -7,7 +7,6 @@ import com.rebenbot.repository.FungicideProductRepository;
 import com.rebenbot.repository.FungalDiseaseRepository;
 import com.rebenbot.repository.InfectionRiskRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -22,20 +21,23 @@ import java.util.stream.Collectors;
 @Slf4j
 public class SprayApplicationService {
 
-    @Autowired
-    private SprayApplicationRepository sprayApplicationRepository;
+    private final SprayApplicationRepository sprayApplicationRepository;
+    private final VineyardRepository vineyardRepository;
+    private final FungicideProductRepository fungicideProductRepository;
+    private final FungalDiseaseRepository diseaseRepository;
+    private final InfectionRiskRepository infectionRiskRepository;
 
-    @Autowired
-    private VineyardRepository vineyardRepository;
-
-    @Autowired
-    private FungicideProductRepository fungicideProductRepository;
-
-    @Autowired
-    private FungalDiseaseRepository diseaseRepository;
-
-    @Autowired
-    private InfectionRiskRepository infectionRiskRepository;
+    public SprayApplicationService(SprayApplicationRepository sprayApplicationRepository,
+                                   VineyardRepository vineyardRepository,
+                                   FungicideProductRepository fungicideProductRepository,
+                                   FungalDiseaseRepository diseaseRepository,
+                                   InfectionRiskRepository infectionRiskRepository) {
+        this.sprayApplicationRepository = sprayApplicationRepository;
+        this.vineyardRepository = vineyardRepository;
+        this.fungicideProductRepository = fungicideProductRepository;
+        this.diseaseRepository = diseaseRepository;
+        this.infectionRiskRepository = infectionRiskRepository;
+    }
 
     /**
      * Log a spray application to the diary.
@@ -129,8 +131,7 @@ public class SprayApplicationService {
      */
     public void assessSprayEffectiveness(SprayApplication spray) {
         // Find the closest risk assessment to the spray application date
-        List<InfectionRisk> risks = infectionRiskRepository.findAll().stream()
-                .filter(r -> r.getDisease().getId().equals(spray.getDisease().getId()))
+        List<InfectionRisk> risks = infectionRiskRepository.findByDiseaseId(spray.getDisease().getId()).stream()
                 .sorted(Comparator.comparing((InfectionRisk r) -> 
                         Math.abs(ChronoUnit.HOURS.between(r.getAssessedAt(), spray.getApplicationDate()))))
                 .limit(5)
@@ -144,10 +145,10 @@ public class SprayApplicationService {
             
             // Also reward proactive spraying (before risk spike)
             // Check if risk increased after spray
-            List<InfectionRisk> afterSpray = infectionRiskRepository.findAll().stream()
-                    .filter(r -> r.getDisease().getId().equals(spray.getDisease().getId()))
-                    .filter(r -> r.getAssessedAt().isAfter(spray.getApplicationDate())
-                            && r.getAssessedAt().isBefore(spray.getApplicationDate().plusHours(72)))
+            List<InfectionRisk> afterSpray = infectionRiskRepository.findByDiseaseIdAndAssessedAtAfter(
+                    spray.getDisease().getId(),
+                    spray.getApplicationDate()).stream()
+                    .filter(r -> r.getAssessedAt().isBefore(spray.getApplicationDate().plusHours(72)))
                     .sorted(Comparator.comparing(InfectionRisk::getRiskScore).reversed())
                     .limit(1)
                     .collect(Collectors.toList());

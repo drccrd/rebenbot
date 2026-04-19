@@ -4,7 +4,6 @@ import com.rebenbot.controller.dto.VineyardRequest;
 import com.rebenbot.model.Vineyard;
 import com.rebenbot.repository.VineyardRepository;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,8 +15,11 @@ import java.util.List;
 @CrossOrigin(origins = "*")
 public class VineyardController {
 
-    @Autowired
-    private VineyardRepository vineyardRepository;
+    private final VineyardRepository vineyardRepository;
+
+    public VineyardController(VineyardRepository vineyardRepository) {
+        this.vineyardRepository = vineyardRepository;
+    }
 
     @GetMapping
     public ResponseEntity<List<Vineyard>> getAllVineyards() {

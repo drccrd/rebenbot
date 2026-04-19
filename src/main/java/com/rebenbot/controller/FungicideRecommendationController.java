@@ -1,7 +1,6 @@
 package com.rebenbot.controller;
 
 import com.rebenbot.repository.FungicideProductRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import lombok.extern.slf4j.Slf4j;
@@ -20,8 +19,11 @@ import java.util.*;
 @Slf4j
 public class FungicideRecommendationController {
 
-    @Autowired
-    private FungicideProductRepository fungicideProductRepository;
+    private final FungicideProductRepository fungicideProductRepository;
+
+    public FungicideRecommendationController(FungicideProductRepository fungicideProductRepository) {
+        this.fungicideProductRepository = fungicideProductRepository;
+    }
 
     /**
      * Get all available fungicides (redirects to database query).
@@ -30,6 +32,32 @@ public class FungicideRecommendationController {
     @GetMapping("/all")
     public ResponseEntity<Map<String, Object>> getAllFungicides() {
         log.info("All fungicides requested");
+        
+        var allProducts = fungicideProductRepository.findAll();
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", "SUCCESS");
+        response.put("fungicideCount", allProducts.size());
+        response.put("fungicides", allProducts.stream()
+                .map(p -> Map.of(
+                    "id", p.getId(),
+                    "name", p.getName(),
+                    "activeSubstance", p.getActiveSubstance(),
+                    "concentrationPercent", p.getConcentrationPercent(),
+                    "manufacturerName", p.getManufacturerName()
+                ))
+                .toList());
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Get latest fungicide recommendations (returns all available fungicides by default).
+     * Note: Advanced recommendation logic can be added here based on current risk assessments.
+     */
+    @GetMapping("/latest-recommendations")
+    public ResponseEntity<Map<String, Object>> getLatestRecommendations() {
+        log.info("Latest recommendations requested");
         
         var allProducts = fungicideProductRepository.findAll();
         

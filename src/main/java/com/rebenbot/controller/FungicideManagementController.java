@@ -3,7 +3,6 @@ package com.rebenbot.controller;
 import com.rebenbot.model.*;
 import com.rebenbot.repository.*;
 import com.rebenbot.service.FungicideService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import lombok.extern.slf4j.Slf4j;
@@ -22,23 +21,27 @@ import java.util.stream.Collectors;
 @Slf4j
 public class FungicideManagementController {
 
-    @Autowired
-    private FungicideService fungicideService;
+    private final FungicideService fungicideService;
+    private final FracCodeRepository fracCodeRepository;
+    private final FungicideProductRepository fungicideProductRepository;
+    private final FungicideApprovalRepository fungicideApprovalRepository;
+    private final RotationStrategyRepository rotationStrategyRepository;
+    private final FungalDiseaseRepository fungalDiseaseRepository;
 
-    @Autowired
-    private FracCodeRepository fracCodeRepository;
-
-    @Autowired
-    private FungicideProductRepository fungicideProductRepository;
-
-    @Autowired
-    private FungicideApprovalRepository fungicideApprovalRepository;
-
-    @Autowired
-    private RotationStrategyRepository rotationStrategyRepository;
-
-    @Autowired
-    private FungalDiseaseRepository fungalDiseaseRepository;
+    public FungicideManagementController(
+            FungicideService fungicideService,
+            FracCodeRepository fracCodeRepository,
+            FungicideProductRepository fungicideProductRepository,
+            FungicideApprovalRepository fungicideApprovalRepository,
+            RotationStrategyRepository rotationStrategyRepository,
+            FungalDiseaseRepository fungalDiseaseRepository) {
+        this.fungicideService = fungicideService;
+        this.fracCodeRepository = fracCodeRepository;
+        this.fungicideProductRepository = fungicideProductRepository;
+        this.fungicideApprovalRepository = fungicideApprovalRepository;
+        this.rotationStrategyRepository = rotationStrategyRepository;
+        this.fungalDiseaseRepository = fungalDiseaseRepository;
+    }
 
     /**
      * Get all FRAC codes (Fungicide Resistance Action Committee classifications)

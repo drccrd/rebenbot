@@ -4,7 +4,6 @@ import com.rebenbot.model.FungicideProduct;
 import com.rebenbot.model.InfectionRisk;
 import com.rebenbot.repository.FungicideProductRepository;
 import com.rebenbot.repository.InfectionRiskRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
 
@@ -20,11 +19,14 @@ import java.util.stream.Collectors;
 @Slf4j
 public class FungicideRecommendationService {
 
-    @Autowired
-    private FungicideProductRepository fungicideProductRepository;
+    private final FungicideProductRepository fungicideProductRepository;
+    private final InfectionRiskRepository infectionRiskRepository;
 
-    @Autowired
-    private InfectionRiskRepository infectionRiskRepository;
+    public FungicideRecommendationService(FungicideProductRepository fungicideProductRepository,
+                                         InfectionRiskRepository infectionRiskRepository) {
+        this.fungicideProductRepository = fungicideProductRepository;
+        this.infectionRiskRepository = infectionRiskRepository;
+    }
 
     /**
      * Data class for fungicide recommendations with rationale
@@ -228,10 +230,7 @@ public class FungicideRecommendationService {
      * Get all recommendations for the latest risk assessment
      */
     public Map<String, Object> getLatestRecommendations(int daysUntilHarvest) {
-        List<InfectionRisk> latestRisks = infectionRiskRepository.findAll().stream()
-                .sorted(Comparator.comparing(InfectionRisk::getAssessedAt).reversed())
-                .limit(2)  // Get latest Peronospora and Oidium
-                .collect(Collectors.toList());
+        List<InfectionRisk> latestRisks = infectionRiskRepository.findLatestRisksByAllDiseases();
 
         if (latestRisks.isEmpty()) {
             return Map.of("status", "NO_DATA", "message", "No risk assessments found. Run weather fetch and risk assessment first.");

@@ -21,8 +21,11 @@ import java.util.stream.Collectors;
 @Slf4j
 public class GrowthStageService {
 
-    @Autowired
-    private WeatherDataRepository weatherDataRepository;
+    private final WeatherDataRepository weatherDataRepository;
+
+    public GrowthStageService(WeatherDataRepository weatherDataRepository) {
+        this.weatherDataRepository = weatherDataRepository;
+    }
 
     // BBCH Growth Stages for Grapevines
     public static final Map<String, String> BBCH_STAGES = Map.ofEntries(
@@ -71,8 +74,9 @@ public class GrowthStageService {
         LocalDateTime endOfDay = LocalDateTime.of(toDate, java.time.LocalTime.of(23, 59, 59));
 
         // Get all weather data from spring to target date
-        List<WeatherData> weatherData = weatherDataRepository.findAll().stream()
-                .filter(w -> w.getRecordedAt().isAfter(springStart) && w.getRecordedAt().isBefore(endOfDay))
+        List<WeatherData> weatherData = weatherDataRepository.findByRecordedAtAfter(springStart);
+        weatherData = weatherData.stream()
+                .filter(w -> w.getRecordedAt().isBefore(endOfDay))
                 .sorted(Comparator.comparing(WeatherData::getRecordedAt))
                 .collect(Collectors.toList());
 

@@ -34,20 +34,23 @@ public class WeatherService {
     private static final double DEFAULT_LON = 8.67;
     private static final int DEFAULT_ASL = 195;
 
-    @Value("${meteoblue.api.key:demo}")
-    private String apiKey;
+    private final String apiKey;
+    private final WeatherDataRepository weatherDataRepository;
+    private final VineyardRepository vineyardRepository;
+    private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
 
-    @Autowired
-    private WeatherDataRepository weatherDataRepository;
-
-    @Autowired
-    private VineyardRepository vineyardRepository;
-
-    @Autowired
-    private RestTemplate restTemplate;
-
-    @Autowired
-    private ObjectMapper objectMapper;
+    public WeatherService(@Value("${meteoblue.api.key:demo}") String apiKey,
+                          WeatherDataRepository weatherDataRepository,
+                          VineyardRepository vineyardRepository,
+                          RestTemplate restTemplate,
+                          ObjectMapper objectMapper) {
+        this.apiKey = apiKey;
+        this.weatherDataRepository = weatherDataRepository;
+        this.vineyardRepository = vineyardRepository;
+        this.restTemplate = restTemplate;
+        this.objectMapper = objectMapper;
+    }
 
     public List<WeatherData> fetchAndStoreWeatherData(int forecastDays) {
         try {
@@ -179,8 +182,7 @@ public class WeatherService {
     }
 
     public Optional<WeatherData> getLatestWeatherData() {
-        return weatherDataRepository.findAll().stream()
-                .max(Comparator.comparing(WeatherData::getRecordedAt));
+        return weatherDataRepository.findTopByOrderByRecordedAtDesc();
     }
 
 }

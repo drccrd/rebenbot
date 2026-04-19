@@ -4,7 +4,6 @@ import com.rebenbot.model.Vineyard;
 import com.rebenbot.repository.VineyardRepository;
 import com.rebenbot.service.GrowthStageService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -18,11 +17,13 @@ import java.time.LocalDateTime;
 @Slf4j
 public class GrowthStageController {
 
-    @Autowired
-    private GrowthStageService growthStageService;
+    private final GrowthStageService growthStageService;
+    private final VineyardRepository vineyardRepository;
 
-    @Autowired
-    private VineyardRepository vineyardRepository;
+    public GrowthStageController(GrowthStageService growthStageService, VineyardRepository vineyardRepository) {
+        this.growthStageService = growthStageService;
+        this.vineyardRepository = vineyardRepository;
+    }
 
     /**
      * Get current growth stage for a vineyard (auto-calculated from GDD or manual override)

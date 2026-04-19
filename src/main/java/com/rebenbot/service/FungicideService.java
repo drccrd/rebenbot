@@ -3,7 +3,6 @@ package com.rebenbot.service;
 import com.rebenbot.model.*;
 import com.rebenbot.repository.*;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -16,23 +15,26 @@ import java.util.stream.Collectors;
 @Slf4j
 public class FungicideService {
 
-    @Autowired
-    private FungicideProductRepository fungicideProductRepository;
+    private final FungicideProductRepository fungicideProductRepository;
+    private final FracCodeRepository fracCodeRepository;
+    private final FungicideApprovalRepository fungicideApprovalRepository;
+    private final FungicideTargetDiseaseRepository fungicideTargetDiseaseRepository;
+    private final RotationStrategyRepository rotationStrategyRepository;
+    private final FungalDiseaseRepository fungalDiseaseRepository;
 
-    @Autowired
-    private FracCodeRepository fracCodeRepository;
-
-    @Autowired
-    private FungicideApprovalRepository fungicideApprovalRepository;
-
-    @Autowired
-    private FungicideTargetDiseaseRepository fungicideTargetDiseaseRepository;
-
-    @Autowired
-    private RotationStrategyRepository rotationStrategyRepository;
-
-    @Autowired
-    private FungalDiseaseRepository fungalDiseaseRepository;
+    public FungicideService(FungicideProductRepository fungicideProductRepository,
+                           FracCodeRepository fracCodeRepository,
+                           FungicideApprovalRepository fungicideApprovalRepository,
+                           FungicideTargetDiseaseRepository fungicideTargetDiseaseRepository,
+                           RotationStrategyRepository rotationStrategyRepository,
+                           FungalDiseaseRepository fungalDiseaseRepository) {
+        this.fungicideProductRepository = fungicideProductRepository;
+        this.fracCodeRepository = fracCodeRepository;
+        this.fungicideApprovalRepository = fungicideApprovalRepository;
+        this.fungicideTargetDiseaseRepository = fungicideTargetDiseaseRepository;
+        this.rotationStrategyRepository = rotationStrategyRepository;
+        this.fungalDiseaseRepository = fungalDiseaseRepository;
+    }
 
     /**
      * Get all fungicides that target a specific disease
@@ -48,13 +50,7 @@ public class FungicideService {
      * Get all fungicides in a specific FRAC code (mode of action)
      */
     public List<FungicideProduct> getFungicidesByFracCode(String fracCode) {
-        Optional<FracCode> frac = fracCodeRepository.findByCode(fracCode);
-        if (frac.isEmpty()) {
-            return new ArrayList<>();
-        }
-        return fungicideProductRepository.findAll().stream()
-            .filter(f -> f.getFracCode().equals(frac.get()))
-            .collect(Collectors.toList());
+        return fungicideProductRepository.findByFracCode(fracCode);
     }
 
     /**

@@ -1,7 +1,6 @@
 package com.rebenbot.controller;
 
 import com.rebenbot.service.SprayTimingService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import lombok.extern.slf4j.Slf4j;
@@ -16,8 +15,11 @@ import java.util.Map;
 @Slf4j
 public class SprayTimingController {
 
-    @Autowired
-    private SprayTimingService sprayTimingService;
+    private final SprayTimingService sprayTimingService;
+
+    public SprayTimingController(SprayTimingService sprayTimingService) {
+        this.sprayTimingService = sprayTimingService;
+    }
 
     /**
      * Get rainfall summary for last 24 hours and spray timing recommendations.

@@ -19,8 +19,11 @@ import java.util.stream.Collectors;
 @Slf4j
 public class SprayTimingService {
 
-    @Autowired
-    private WeatherDataRepository weatherDataRepository;
+    private final WeatherDataRepository weatherDataRepository;
+
+    public SprayTimingService(WeatherDataRepository weatherDataRepository) {
+        this.weatherDataRepository = weatherDataRepository;
+    }
 
     public static final double SIGNIFICANT_RAIN_MM = 2.0;  // Rain threshold
     public static final double SPRAY_WINDOW_DRY_TIME_HOURS = 4.0;  // Hours needed dry after spray
@@ -84,14 +87,11 @@ public class SprayTimingService {
      */
     public double calculate24HourRainfall() {
         LocalDateTime cutoff = LocalDateTime.now().minusHours(24);
-        List<WeatherData> recentData = weatherDataRepository.findAll().stream()
-                .filter(w -> w.getRecordedAt().isAfter(cutoff) && !w.getRecordedAt().isAfter(LocalDateTime.now()))
-                .sorted(Comparator.comparing(WeatherData::getRecordedAt))
-                .collect(Collectors.toList());
+        List<WeatherData> recentData = weatherDataRepository.findRecentData(cutoff);
 
         double totalRainfall = 0.0;
         for (WeatherData weather : recentData) {
-            if (weather.getPrecipitationMm() != null) {
+            if (weather.getPrecipitationMm() != null && weather.getRecordedAt().isBefore(LocalDateTime.now())) {
                 totalRainfall += weather.getPrecipitationMm();
             }
         }
@@ -106,10 +106,7 @@ public class SprayTimingService {
      */
     public Double getHoursSinceLastSignificantRain() {
         LocalDateTime cutoff = LocalDateTime.now().minusHours(72);
-        List<WeatherData> recentData = weatherDataRepository.findAll().stream()
-                .filter(w -> w.getRecordedAt().isAfter(cutoff))
-                .sorted(Comparator.comparing(WeatherData::getRecordedAt).reversed())
-                .collect(Collectors.toList());
+        List<WeatherData> recentData = weatherDataRepository.findRecentData(cutoff);
 
         for (WeatherData weather : recentData) {
             if (weather.getPrecipitationMm() != null && weather.getPrecipitationMm() >= SIGNIFICANT_RAIN_MM) {
@@ -139,8 +136,9 @@ public class SprayTimingService {
 
         // Look ahead 48 hours for significant rain
         LocalDateTime lookAhead = LocalDateTime.now().plusHours(48);
-        List<WeatherData> forecastData = weatherDataRepository.findAll().stream()
-                .filter(w -> w.getRecordedAt().isAfter(LocalDateTime.now()) && w.getRecordedAt().isBefore(lookAhead))
+        List<WeatherData> forecastData = weatherDataRepository.findByRecordedAtAfter(LocalDateTime.now());
+        forecastData = forecastData.stream()
+                .filter(w -> w.getRecordedAt().isBefore(lookAhead))
                 .sorted(Comparator.comparing(WeatherData::getRecordedAt))
                 .collect(Collectors.toList());
 

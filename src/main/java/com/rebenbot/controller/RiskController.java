@@ -3,7 +3,6 @@ package com.rebenbot.controller;
 import com.rebenbot.model.InfectionRisk;
 import com.rebenbot.service.RiskAssessmentService;
 import com.rebenbot.service.RiskCalculator;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,8 +14,11 @@ import java.util.*;
 @CrossOrigin(origins = "*")
 public class RiskController {
 
-    @Autowired
-    private RiskAssessmentService riskAssessmentService;
+    private final RiskAssessmentService riskAssessmentService;
+
+    public RiskController(RiskAssessmentService riskAssessmentService) {
+        this.riskAssessmentService = riskAssessmentService;
+    }
 
     /**
      * Calculate current infection risk based on latest weather data.

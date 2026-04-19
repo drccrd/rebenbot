@@ -5,7 +5,6 @@ import com.rebenbot.model.SprayApplication;
 import com.rebenbot.service.SprayApplicationService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,8 +16,11 @@ import java.util.*;
 @Slf4j
 public class SprayApplicationController {
 
-    @Autowired
-    private SprayApplicationService sprayApplicationService;
+    private final SprayApplicationService sprayApplicationService;
+
+    public SprayApplicationController(SprayApplicationService sprayApplicationService) {
+        this.sprayApplicationService = sprayApplicationService;
+    }
 
     /**
      * Log a spray application.

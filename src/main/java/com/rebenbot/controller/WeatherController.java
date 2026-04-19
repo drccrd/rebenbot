@@ -3,7 +3,6 @@ package com.rebenbot.controller;
 import com.rebenbot.model.WeatherData;
 import com.rebenbot.repository.WeatherDataRepository;
 import com.rebenbot.service.WeatherService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import lombok.extern.slf4j.Slf4j;
@@ -16,11 +15,13 @@ import java.util.List;
 @Slf4j
 public class WeatherController {
 
-    @Autowired
-    private WeatherService weatherService;
+    private final WeatherService weatherService;
+    private final WeatherDataRepository weatherDataRepository;
 
-    @Autowired
-    private WeatherDataRepository weatherDataRepository;
+    public WeatherController(WeatherService weatherService, WeatherDataRepository weatherDataRepository) {
+        this.weatherService = weatherService;
+        this.weatherDataRepository = weatherDataRepository;
+    }
 
     /**
      * Fetch current weather data from Meteoblue and store in database.

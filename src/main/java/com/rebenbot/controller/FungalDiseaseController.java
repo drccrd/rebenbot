@@ -4,7 +4,6 @@ import com.rebenbot.controller.dto.FungalDiseaseRequest;
 import com.rebenbot.model.FungalDisease;
 import com.rebenbot.repository.FungalDiseaseRepository;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,8 +14,11 @@ import java.util.List;
 @CrossOrigin(origins = "*")
 public class FungalDiseaseController {
 
-    @Autowired
-    private FungalDiseaseRepository diseaseRepository;
+    private final FungalDiseaseRepository diseaseRepository;
+
+    public FungalDiseaseController(FungalDiseaseRepository diseaseRepository) {
+        this.diseaseRepository = diseaseRepository;
+    }
 
     @GetMapping
     public ResponseEntity<List<FungalDisease>> getAllDiseases() {
