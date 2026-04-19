@@ -292,7 +292,6 @@
               <p class="dosage" v-if="fung.baseDosageMlHa"><strong>Base Dosage:</strong> {{ fung.baseDosageMlHa }} mL/ha</p>
               <p class="phi" v-if="fung.phiDays"><strong>PHI:</strong> {{ fung.phiDays }} days</p>
               <p class="manufacturer" v-if="fung.manufacturerName"><strong>Manufacturer:</strong> {{ fung.manufacturerName }}</p>
-              <p class="recommendation">Use the dosage calculator to determine the amount needed for your conditions</p>
             </div>
           </div>
         </div>
