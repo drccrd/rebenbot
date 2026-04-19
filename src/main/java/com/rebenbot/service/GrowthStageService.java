@@ -1,17 +1,12 @@
 package com.rebenbot.service;
 
-import com.rebenbot.model.WeatherData;
 import com.rebenbot.repository.WeatherDataRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.YearMonth;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Service for calculating vine growth stages using Growing Degree Days (GDD)

@@ -3,13 +3,11 @@ package com.rebenbot.service;
 import com.rebenbot.model.WeatherData;
 import com.rebenbot.repository.WeatherDataRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Service for calculating spray timing recommendations based on weather conditions.
