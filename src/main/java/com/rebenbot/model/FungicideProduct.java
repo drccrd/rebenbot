@@ -35,6 +35,12 @@ public class FungicideProduct {
     @Column(name = "manufacturer_name")
     private String manufacturerName;
 
+    @Column(name = "base_dosage_ml_ha")
+    private Double baseDosageMlHa;  // Base dosage in ml/ha
+
+    @Column(name = "phi_days")
+    private Integer phiDays;  // Pre-Harvest Interval in days
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "frac_code_id", nullable = false)
     private FracCode fracCode;

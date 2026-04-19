@@ -279,35 +279,20 @@
       <section class="recommendations-section" v-if="recommendations.length > 0">
         <h2>Recommended Fungicides</h2>
         <div class="recommendations-list">
-          <div 
-            v-for="(group, disease) in groupRecommendations()" 
-            :key="disease"
-            class="recommendation-group"
-          >
-            <h3>{{ disease }}</h3>
-            <div class="fungicide-cards">
-              <div 
-                v-for="(rec, index) in group.slice(0, 3)" 
-                :key="index"
-                class="fungicide-card"
-                :class="{ 'not-applicable': !rec.applicable }"
-              >
-                <div class="fungicide-header">
-                  <h4>{{ rec.name }}</h4>
-                  <span class="score-badge">Score: {{ (rec.score * 100).toFixed(0) }}%</span>
-                </div>
-                <p class="active-substance">{{ rec.activeSubstance }}</p>
-                <p class="timing">⏱️ {{ rec.timing }}</p>
-                <p class="rationale">{{ rec.rationale }}</p>
-                <div class="fungicide-details">
-                  <span v-if="rec.applicable" class="phi-ok">✓ PHI OK ({{ rec.minDaysBeforeHarvest }} days)</span>
-                  <span v-else class="phi-warn">⚠ PHI Issue: Need {{ rec.minDaysBeforeHarvest }} days</span>
-                </div>
-                <div class="dosage-info" v-if="rec.dosageMlPer100L && vineyard">
-                  <span class="dosage-label">Dosage for {{ vineyard.sizeAres }} are:</span>
-                  <span class="dosage-value">{{ calculateFungicideDosage(rec.dosageMlPer100L) }} L</span>
-                </div>
+          <div class="fungicide-cards">
+            <div 
+              v-for="fung in recommendations" 
+              :key="fung.id"
+              class="fungicide-card"
+            >
+              <div class="fungicide-header">
+                <h4>{{ fung.name }}</h4>
               </div>
+              <p class="active-substance"><strong>Active Substance:</strong> {{ fung.activeSubstance }}</p>
+              <p class="dosage" v-if="fung.baseDosageMlHa"><strong>Base Dosage:</strong> {{ fung.baseDosageMlHa }} mL/ha</p>
+              <p class="phi" v-if="fung.phiDays"><strong>PHI:</strong> {{ fung.phiDays }} days</p>
+              <p class="manufacturer" v-if="fung.manufacturerName"><strong>Manufacturer:</strong> {{ fung.manufacturerName }}</p>
+              <p class="recommendation">Use the dosage calculator to determine the amount needed for your conditions</p>
             </div>
           </div>
         </div>

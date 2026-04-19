@@ -39,13 +39,17 @@ public class FungicideRecommendationController {
         response.put("status", "SUCCESS");
         response.put("fungicideCount", allProducts.size());
         response.put("fungicides", allProducts.stream()
-                .map(p -> Map.of(
-                    "id", p.getId(),
-                    "name", p.getName(),
-                    "activeSubstance", p.getActiveSubstance(),
-                    "concentrationPercent", p.getConcentrationPercent(),
-                    "manufacturerName", p.getManufacturerName()
-                ))
+                .map(p -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", p.getId());
+                    map.put("name", p.getName());
+                    map.put("activeSubstance", p.getActiveSubstance());
+                    map.put("concentrationPercent", p.getConcentrationPercent());
+                    map.put("manufacturerName", p.getManufacturerName());
+                    map.put("baseDosageMlHa", p.getBaseDosageMlHa());
+                    map.put("phiDays", p.getPhiDays());
+                    return map;
+                })
                 .toList());
 
         return ResponseEntity.ok(response);
@@ -65,13 +69,17 @@ public class FungicideRecommendationController {
         response.put("status", "SUCCESS");
         response.put("fungicideCount", allProducts.size());
         response.put("fungicides", allProducts.stream()
-                .map(p -> Map.of(
-                    "id", p.getId(),
-                    "name", p.getName(),
-                    "activeSubstance", p.getActiveSubstance(),
-                    "concentrationPercent", p.getConcentrationPercent(),
-                    "manufacturerName", p.getManufacturerName()
-                ))
+                .map(p -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", p.getId());
+                    map.put("name", p.getName());
+                    map.put("activeSubstance", p.getActiveSubstance());
+                    map.put("concentrationPercent", p.getConcentrationPercent());
+                    map.put("manufacturerName", p.getManufacturerName());
+                    map.put("baseDosageMlHa", p.getBaseDosageMlHa());
+                    map.put("phiDays", p.getPhiDays());
+                    return map;
+                })
                 .toList());
 
         return ResponseEntity.ok(response);

@@ -49,6 +49,8 @@ CREATE TABLE IF NOT EXISTS fungicide_product (
     active_substance VARCHAR(255) NOT NULL,
     concentration_percent DOUBLE PRECISION,
     manufacturer_name VARCHAR(255),
+    base_dosage_ml_ha DOUBLE PRECISION,
+    phi_days INTEGER,
     frac_code_id BIGINT NOT NULL REFERENCES frac_code(id),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -181,17 +183,17 @@ INSERT INTO frac_code (code, chemical_class, description, resistance_risk_level)
 ON CONFLICT (code) DO NOTHING;
 
 -- Initial data: Fungicide Products
-INSERT INTO fungicide_product (name, active_substance, concentration_percent, manufacturer_name, frac_code_id) VALUES
-    ('Bordeaux Mixture', 'Copper sulfate/Lime', 50.0, 'Various', (SELECT id FROM frac_code WHERE code = 'M')),
-    ('Sulfur Powder', 'Sulfur', 95.0, 'Various', (SELECT id FROM frac_code WHERE code = 'M')),
-    ('Folpet', 'Folpet', 50.0, 'Syngenta', (SELECT id FROM frac_code WHERE code = 'M')),
-    ('Mancozeb', 'Mancozeb', 80.0, 'Various', (SELECT id FROM frac_code WHERE code = 'M')),
-    ('Tebuconazole', 'Tebuconazole', 25.0, 'Bayer', (SELECT id FROM frac_code WHERE code = '3')),
-    ('Penconazole', 'Penconazole', 10.0, 'Syngenta', (SELECT id FROM frac_code WHERE code = '3')),
-    ('Triadimefon', 'Triadimefon', 50.0, 'Various', (SELECT id FROM frac_code WHERE code = '3')),
-    ('Cymoxanil', 'Cymoxanil', 8.0, 'Dupont', (SELECT id FROM frac_code WHERE code = 'U')),
-    ('Amisulbrom', 'Amisulbrom', 20.0, 'Valent', (SELECT id FROM frac_code WHERE code = 'U')),
-    ('Metalaxyl', 'Metalaxyl', 8.0, 'Syngenta', (SELECT id FROM frac_code WHERE code = 'C'))
+INSERT INTO fungicide_product (name, active_substance, concentration_percent, manufacturer_name, base_dosage_ml_ha, phi_days, frac_code_id) VALUES
+    ('Bordeaux Mixture', 'Copper sulfate/Lime', 50.0, 'Various', 200.0, 7, (SELECT id FROM frac_code WHERE code = 'M')),
+    ('Sulfur Powder', 'Sulfur', 95.0, 'Various', 1500.0, 14, (SELECT id FROM frac_code WHERE code = 'M')),
+    ('Folpet', 'Folpet', 50.0, 'Syngenta', 150.0, 28, (SELECT id FROM frac_code WHERE code = 'M')),
+    ('Mancozeb', 'Mancozeb', 80.0, 'Various', 200.0, 35, (SELECT id FROM frac_code WHERE code = 'M')),
+    ('Tebuconazole', 'Tebuconazole', 25.0, 'Bayer', 75.0, 14, (SELECT id FROM frac_code WHERE code = '3')),
+    ('Penconazole', 'Penconazole', 10.0, 'Syngenta', 60.0, 21, (SELECT id FROM frac_code WHERE code = '3')),
+    ('Triadimefon', 'Triadimefon', 50.0, 'Various', 100.0, 28, (SELECT id FROM frac_code WHERE code = '3')),
+    ('Cymoxanil', 'Cymoxanil', 8.0, 'Dupont', 75.0, 3, (SELECT id FROM frac_code WHERE code = 'U')),
+    ('Amisulbrom', 'Amisulbrom', 20.0, 'Valent', 100.0, 14, (SELECT id FROM frac_code WHERE code = 'U')),
+    ('Metalaxyl', 'Metalaxyl', 8.0, 'Syngenta', 80.0, 14, (SELECT id FROM frac_code WHERE code = 'C'))
 ON CONFLICT (name) DO NOTHING;
 
 -- Initial data: Fungicide Target Diseases (Peronospora and Oidium)
