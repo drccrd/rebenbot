@@ -216,11 +216,13 @@ public class WeatherService {
                 LocalDateTime dateTime;
                 if (timeNode.isTextual()) {
                     // Handle format: "2026-04-25 23:00" (space separator, not ISO T separator)
+                    // Meteoblue returns times in the timezone specified in metadata (usually Europe/Berlin)
                     String timeStr = timeNode.asText();
-                    log.debug("Parsing timestamp: {}", timeStr);
+                    log.debug("Parsing timestamp: {} with timezone: {}", timeStr, timezone);
                     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-                    dateTime = LocalDateTime.parse(timeStr, formatter);
-                    log.debug("Converted to LocalDateTime: {}", dateTime);
+                    LocalDateTime localDateTime = LocalDateTime.parse(timeStr, formatter);
+                    dateTime = localDateTime.atZone(zoneId).toLocalDateTime();
+                    log.debug("Converted to LocalDateTime: {} (original timezone: {})", dateTime, timezone);
                 } else if (timeNode.isNumber()) {
                     // Handle Unix seconds (fallback)
                     long timeValue = timeNode.asLong();
@@ -270,7 +272,7 @@ public class WeatherService {
      */
     private void ensureFreshWeatherData() {
         try {
-            Optional<WeatherData> latestData = weatherDataRepository.findTopByOrderByRecordedAtDesc();
+            Optional<WeatherData> latestData = weatherDataRepository.findCurrentWeatherData(LocalDateTime.now());
             
             if (latestData.isEmpty()) {
                 log.info("No weather data found, fetching from Meteoblue...");
@@ -296,7 +298,7 @@ public class WeatherService {
 
     public Optional<WeatherData> getLatestWeatherData() {
         ensureFreshWeatherData();
-        return weatherDataRepository.findTopByOrderByRecordedAtDesc();
+        return weatherDataRepository.findCurrentWeatherData(LocalDateTime.now());
     }
 
     /**

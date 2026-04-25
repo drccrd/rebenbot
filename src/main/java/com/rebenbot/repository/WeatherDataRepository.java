@@ -14,10 +14,10 @@ import java.util.Optional;
 public interface WeatherDataRepository extends JpaRepository<WeatherData, Long> {
     
     /**
-     * Find the most recent weather record (optimized for single row).
-     * Replaces: findAll().stream().max(Comparator.comparing(WeatherData::getRecordedAt))
+     * Find current weather data: the most recent record at or before NOW.
      */
-    Optional<WeatherData> findTopByOrderByRecordedAtDesc();
+    @Query("SELECT w FROM WeatherData w WHERE w.recordedAt <= :now ORDER BY w.recordedAt DESC LIMIT 1")
+    Optional<WeatherData> findCurrentWeatherData(@Param("now") LocalDateTime now);
     
     /**
      * Find weather records after a specific date (optimized with WHERE clause).
