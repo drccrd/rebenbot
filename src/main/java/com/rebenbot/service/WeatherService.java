@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
@@ -89,6 +90,51 @@ public class WeatherService {
         }
     }
 
+    /**
+     * Fetch and store historical weather data from Meteoblue archive (date_start to date_end).
+     * Meteoblue's basic-1h_agro-1h package supports historical data via date parameters.
+     */
+    public List<WeatherData> fetchAndStoreHistoricalWeatherData(LocalDate startDate, LocalDate endDate) {
+        try {
+            log.info("fetchAndStoreHistoricalWeatherData called for {} to {}", startDate, endDate);
+            
+            Vineyard vineyard = getOrCreateDefaultVineyard();
+            if (vineyard == null) {
+                log.error("No vineyard found. Cannot fetch historical weather data.");
+                return Collections.emptyList();
+            }
+            
+            // Use vineyard coordinates if available, otherwise use defaults
+            double lat = vineyard.getLatitude() != null ? vineyard.getLatitude() : DEFAULT_LAT;
+            double lon = vineyard.getLongitude() != null ? vineyard.getLongitude() : DEFAULT_LON;
+            
+            log.debug("Fetching historical weather for vineyard '{}' at ({}, {}) from {} to {}", 
+                    vineyard.getName(), 
+                    String.format("%.4f", lat), String.format("%.4f", lon),
+                    startDate, endDate);
+            
+            String url = buildMeteoblueArchiveUrl(lat, lon, startDate.toString(), endDate.toString());
+            log.debug("Built Meteoblue archive URL: {}", url);
+            
+            String response = restTemplate.getForObject(url, String.class);
+            log.debug("Got response from Meteoblue archive, response length: {}", response != null ? response.length() : "null");
+            
+            if (response == null) {
+                log.error("RestTemplate returned null response for historical data");
+                return Collections.emptyList();
+            }
+            
+            List<WeatherData> weatherDataList = parseAndStoreWeatherData(response, vineyard);
+            log.info("Fetched and stored {} historical weather records from Meteoblue ({} to {})", 
+                    weatherDataList.size(), startDate, endDate);
+            return weatherDataList;
+
+        } catch (Exception e) {
+            log.error("Error fetching historical weather data from Meteoblue: {}", e.getMessage(), e);
+            return Collections.emptyList();
+        }
+    }
+
     private Vineyard getOrCreateDefaultVineyard() {
         List<Vineyard> vineyards = vineyardRepository.findAll();
         if (vineyards.isEmpty()) {
@@ -107,6 +153,23 @@ public class WeatherService {
                 DEFAULT_ASL,
                 apiKey,
                 forecastDays
+        );
+    }
+
+    /**
+     * Build Meteoblue URL for historical archive data.
+     * Meteoblue's basic-1h_agro-1h package supports both forecast_days and date_start/date_end parameters.
+     */
+    private String buildMeteoblueArchiveUrl(double lat, double lon, String startDate, String endDate) {
+        return String.format(
+                "%s?lat=%.2f&lon=%.2f&asl=%d&apikey=%s&format=json&date_start=%s&date_end=%s&tz=Europe/Berlin",
+                METEOBLUE_API_URL,
+                lat,
+                lon,
+                DEFAULT_ASL,
+                apiKey,
+                startDate,
+                endDate
         );
     }
 
@@ -175,7 +238,9 @@ public class WeatherService {
                 double tempValue = temps.has(i) && !temps.get(i).isNull() ? temps.get(i).asDouble() : 15.0;
                 double humidityValue = humidity.has(i) && !humidity.get(i).isNull() ? humidity.get(i).asDouble() : 60.0;
                 double precValue = precipitation.has(i) && !precipitation.get(i).isNull() ? precipitation.get(i).asDouble() : 0.0;
-                double windValue = windSpeed.has(i) && !windSpeed.get(i).isNull() ? windSpeed.get(i).asDouble() : 0.0;
+                // Meteoblue returns wind speed in km/h, convert to m/s
+                double windValueKmh = windSpeed.has(i) && !windSpeed.get(i).isNull() ? windSpeed.get(i).asDouble() : 0.0;
+                double windValueMsec = windValueKmh / 3.6;
                 double wetness = leafWetness.has(i) && !leafWetness.get(i).isNull() ? leafWetness.get(i).asDouble() : 0.0;
 
                 WeatherData data = WeatherData.builder()
@@ -184,7 +249,7 @@ public class WeatherService {
                         .temperatureC(tempValue)
                         .humidityPercent(humidityValue)
                         .precipitationMm(precValue)
-                        .windSpeedMsec(windValue)
+                        .windSpeedMsec(windValueMsec)
                         .leafWetnessIndex(wetness)
                         .build();
 
@@ -232,6 +297,29 @@ public class WeatherService {
     public Optional<WeatherData> getLatestWeatherData() {
         ensureFreshWeatherData();
         return weatherDataRepository.findTopByOrderByRecordedAtDesc();
+    }
+
+    /**
+     * Shared utility to build WeatherData from parsed API values.
+     * Handles unit conversions: wind speed km/h → m/s
+     * This is the source of truth for all weather data creation.
+     */
+    public WeatherData buildWeatherData(Vineyard vineyard, LocalDateTime recordedAt,
+                                        double temperatureC, double humidityPercent,
+                                        double precipitationMm, double windSpeedKmh,
+                                        double leafWetnessIndex) {
+        // Convert wind speed from km/h to m/s
+        double windSpeedMsec = windSpeedKmh / 3.6;
+        
+        return WeatherData.builder()
+                .vineyard(vineyard)
+                .recordedAt(recordedAt)
+                .temperatureC(temperatureC)
+                .humidityPercent(humidityPercent)
+                .precipitationMm(precipitationMm)
+                .windSpeedMsec(windSpeedMsec)
+                .leafWetnessIndex(leafWetnessIndex)
+                .build();
     }
 
 }
