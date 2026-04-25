@@ -210,19 +210,15 @@ public class WeatherService {
 
         for (int i = 0; i < Math.min(times.size(), 168); i++) {
             try {
-                JsonNode timeNode = times.get(i);
-                log.debug("Time node {}: value={}, isNumber={}, isTextual={}", i, timeNode, timeNode.isNumber(), timeNode.isTextual());
-                
+                JsonNode timeNode = times.get(i);                
                 LocalDateTime dateTime;
                 if (timeNode.isTextual()) {
                     // Handle format: "2026-04-25 23:00" (space separator, not ISO T separator)
                     // Meteoblue returns times in the timezone specified in metadata (usually Europe/Berlin)
                     String timeStr = timeNode.asText();
-                    log.debug("Parsing timestamp: {} with timezone: {}", timeStr, timezone);
                     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
                     LocalDateTime localDateTime = LocalDateTime.parse(timeStr, formatter);
                     dateTime = localDateTime.atZone(zoneId).toLocalDateTime();
-                    log.debug("Converted to LocalDateTime: {} (original timezone: {})", dateTime, timezone);
                 } else if (timeNode.isNumber()) {
                     // Handle Unix seconds (fallback)
                     long timeValue = timeNode.asLong();
