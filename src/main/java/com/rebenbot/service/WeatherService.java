@@ -35,6 +35,8 @@ public class WeatherService {
     private static final int DEFAULT_ASL = 195;
     private static final int WEATHER_DATA_FRESHNESS_MINUTES = 30;
 
+    private LocalDateTime lastFetchedAt = null;  // Wall clock time of last Meteoblue fetch this session
+
     private final String apiKey;
     private final WeatherDataRepository weatherDataRepository;
     private final VineyardRepository vineyardRepository;
@@ -91,8 +93,8 @@ public class WeatherService {
     }
 
     /**
-     * Fetch and store historical weather data from Meteoblue archive (date_start to date_end).
-     * Meteoblue's basic-1h_agro-1h package supports historical data via date parameters.
+     * Fetch and store historical weather data from Open-Meteo free archive API.
+     * Open-Meteo provides unlimited free historical weather data without API key.
      */
     public List<WeatherData> fetchAndStoreHistoricalWeatherData(LocalDate startDate, LocalDate endDate) {
         try {
@@ -108,29 +110,32 @@ public class WeatherService {
             double lat = vineyard.getLatitude() != null ? vineyard.getLatitude() : DEFAULT_LAT;
             double lon = vineyard.getLongitude() != null ? vineyard.getLongitude() : DEFAULT_LON;
             
-            log.debug("Fetching historical weather for vineyard '{}' at ({}, {}) from {} to {}", 
+            log.debug("Fetching historical weather from Open-Meteo for vineyard '{}' at ({}, {}) from {} to {}", 
                     vineyard.getName(), 
                     String.format("%.4f", lat), String.format("%.4f", lon),
                     startDate, endDate);
             
-            String url = buildMeteoblueArchiveUrl(lat, lon, startDate.toString(), endDate.toString());
-            log.debug("Built Meteoblue archive URL: {}", url);
+            String url = String.format(
+                    "https://archive-api.open-meteo.com/v1/archive?latitude=%.2f&longitude=%.2f&start_date=%s&end_date=%s&hourly=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m&timezone=Europe/Berlin",
+                    lat, lon, startDate, endDate
+            );
+            log.debug("Built Open-Meteo archive URL: {}", url);
             
             String response = restTemplate.getForObject(url, String.class);
-            log.debug("Got response from Meteoblue archive, response length: {}", response != null ? response.length() : "null");
+            log.debug("Got response from Open-Meteo archive, response length: {}", response != null ? response.length() : "null");
             
             if (response == null) {
                 log.error("RestTemplate returned null response for historical data");
                 return Collections.emptyList();
             }
             
-            List<WeatherData> weatherDataList = parseAndStoreWeatherData(response, vineyard);
-            log.info("Fetched and stored {} historical weather records from Meteoblue ({} to {})", 
+            List<WeatherData> weatherDataList = parseOpenMeteoArchiveData(response, vineyard);
+            log.info("Fetched and stored {} historical weather records from Open-Meteo ({} to {})", 
                     weatherDataList.size(), startDate, endDate);
             return weatherDataList;
 
         } catch (Exception e) {
-            log.error("Error fetching historical weather data from Meteoblue: {}", e.getMessage(), e);
+            log.error("Error fetching historical weather data from Open-Meteo: {}", e.getMessage(), e);
             return Collections.emptyList();
         }
     }
@@ -153,23 +158,6 @@ public class WeatherService {
                 DEFAULT_ASL,
                 apiKey,
                 forecastDays
-        );
-    }
-
-    /**
-     * Build Meteoblue URL for historical archive data.
-     * Meteoblue's basic-1h_agro-1h package supports both forecast_days and date_start/date_end parameters.
-     */
-    private String buildMeteoblueArchiveUrl(double lat, double lon, String startDate, String endDate) {
-        return String.format(
-                "%s?lat=%.2f&lon=%.2f&asl=%d&apikey=%s&format=json&date_start=%s&date_end=%s&tz=Europe/Berlin",
-                METEOBLUE_API_URL,
-                lat,
-                lon,
-                DEFAULT_ASL,
-                apiKey,
-                startDate,
-                endDate
         );
     }
 
@@ -214,11 +202,9 @@ public class WeatherService {
                 LocalDateTime dateTime;
                 if (timeNode.isTextual()) {
                     // Handle format: "2026-04-25 23:00" (space separator, not ISO T separator)
-                    // Meteoblue returns times in the timezone specified in metadata (usually Europe/Berlin)
                     String timeStr = timeNode.asText();
                     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-                    LocalDateTime localDateTime = LocalDateTime.parse(timeStr, formatter);
-                    dateTime = localDateTime.atZone(zoneId).toLocalDateTime();
+                    dateTime = LocalDateTime.parse(timeStr, formatter);
                 } else if (timeNode.isNumber()) {
                     // Handle Unix seconds (fallback)
                     long timeValue = timeNode.asLong();
@@ -264,28 +250,36 @@ public class WeatherService {
     }
 
     /**
-     * Check if latest weather data is stale and auto-fetch if needed.
+     * Check if we last fetched recently enough and auto-fetch if needed.
+     * Uses lastFetchedAt (wall clock time of last fetch) rather than recordedAt of the data,
+     * because Meteoblue forecast timestamps reflect the start of each forecast hour, not when we fetched.
+     * Synchronized to prevent concurrent threads from fetching duplicate data.
      */
-    private void ensureFreshWeatherData() {
+    private synchronized void ensureFreshWeatherData() {
         try {
-            Optional<WeatherData> latestData = weatherDataRepository.findCurrentWeatherData(LocalDateTime.now());
-            
-            if (latestData.isEmpty()) {
-                log.info("No weather data found, fetching from Meteoblue...");
+            LocalDateTime staleThreshold = LocalDateTime.now().minusMinutes(WEATHER_DATA_FRESHNESS_MINUTES);
+
+            if (lastFetchedAt == null) {
+                Optional<WeatherData> latestData = weatherDataRepository.findCurrentWeatherData(LocalDateTime.now());
+                if (latestData.isEmpty()) {
+                    log.info("No weather data found, fetching from Meteoblue...");
+                } else {
+                    log.info("No fetch record this session, fetching fresh data from Meteoblue...");
+                }
                 fetchAndStoreWeatherData(7);
+                lastFetchedAt = LocalDateTime.now();
                 return;
             }
-            
-            LocalDateTime latestRecordTime = latestData.get().getRecordedAt();
-            LocalDateTime staleThreshold = LocalDateTime.now().minusMinutes(WEATHER_DATA_FRESHNESS_MINUTES);
-            long minutesOld = java.time.temporal.ChronoUnit.MINUTES.between(latestRecordTime, LocalDateTime.now());
-            
-            if (latestRecordTime.isBefore(staleThreshold)) {
-                log.info("Weather data is {} minutes old (threshold: {}), fetching fresh data from Meteoblue...",
+
+            if (lastFetchedAt.isBefore(staleThreshold)) {
+                long minutesOld = java.time.temporal.ChronoUnit.MINUTES.between(lastFetchedAt, LocalDateTime.now());
+                log.info("Last fetch was {} minutes ago (threshold: {}), fetching fresh data from Meteoblue...",
                         minutesOld, WEATHER_DATA_FRESHNESS_MINUTES);
                 fetchAndStoreWeatherData(7);
+                lastFetchedAt = LocalDateTime.now();
             } else {
-                log.debug("Weather data is fresh ({} minutes old, threshold: {})", minutesOld, WEATHER_DATA_FRESHNESS_MINUTES);
+                long minutesOld = java.time.temporal.ChronoUnit.MINUTES.between(lastFetchedAt, LocalDateTime.now());
+                log.debug("Weather data is fresh (fetched {} minutes ago, threshold: {})", minutesOld, WEATHER_DATA_FRESHNESS_MINUTES);
             }
         } catch (Exception e) {
             log.warn("Error checking/refreshing weather data: {}", e.getMessage());
@@ -318,6 +312,57 @@ public class WeatherService {
                 .windSpeedMsec(windSpeedMsec)
                 .leafWetnessIndex(leafWetnessIndex)
                 .build();
+    }
+
+    /**
+     * Parse Open-Meteo archive API response format.
+     * Open-Meteo uses different JSON structure than Meteoblue.
+     */
+    private List<WeatherData> parseOpenMeteoArchiveData(String jsonResponse, Vineyard vineyard) throws Exception {
+        List<WeatherData> weatherDataList = new ArrayList<>();
+
+        JsonNode root = objectMapper.readTree(jsonResponse);
+        JsonNode hourly = root.path("hourly");
+
+        if (hourly.isMissingNode()) {
+            log.error("No hourly data in Open-Meteo response");
+            return weatherDataList;
+        }
+
+        JsonNode times = hourly.path("time");
+        JsonNode temps = hourly.path("temperature_2m");
+        JsonNode humidity = hourly.path("relative_humidity_2m");
+        JsonNode precipitation = hourly.path("precipitation");
+        JsonNode windSpeed = hourly.path("wind_speed_10m");
+
+        if (!times.isArray() || times.size() == 0) {
+            log.error("Time array missing or empty in Open-Meteo response");
+            return weatherDataList;
+        }
+
+        log.debug("Found {} hourly records from Open-Meteo archive", times.size());
+
+        for (int i = 0; i < times.size(); i++) {
+            try {
+                String timeStr = times.get(i).asText();
+                // Open-Meteo format: "2026-04-01 00:00"
+                LocalDateTime recordTime = LocalDateTime.parse(timeStr.replace(" ", "T"));
+
+                double tempValue = temps.has(i) && !temps.get(i).isNull() ? temps.get(i).asDouble() : 15.0;
+                double humidityValue = humidity.has(i) && !humidity.get(i).isNull() ? humidity.get(i).asDouble() : 60.0;
+                double precValue = precipitation.has(i) && !precipitation.get(i).isNull() ? precipitation.get(i).asDouble() : 0.0;
+                double windValueKmh = windSpeed.has(i) && !windSpeed.get(i).isNull() ? windSpeed.get(i).asDouble() : 0.0;
+
+                WeatherData data = buildWeatherData(vineyard, recordTime, tempValue, humidityValue, precValue, windValueKmh, 0.0);
+                weatherDataList.add(data);
+                weatherDataRepository.save(data);
+
+            } catch (Exception e) {
+                log.warn("Error parsing Open-Meteo weather record at index {}: {}", i, e.getMessage());
+            }
+        }
+
+        return weatherDataList;
     }
 
 }

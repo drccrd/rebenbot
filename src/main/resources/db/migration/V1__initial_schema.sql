@@ -108,7 +108,8 @@ CREATE TABLE IF NOT EXISTS weather_data (
     precipitation_mm DOUBLE PRECISION,
     wind_speed_msec DOUBLE PRECISION,
     leaf_wetness_index DOUBLE PRECISION,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(vineyard_id, recorded_at)
 );
 
 -- Risk Assessment table (existing concept)

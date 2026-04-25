@@ -9,7 +9,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "weather_data")
+@Table(name = "weather_data", uniqueConstraints = @UniqueConstraint(columnNames = {"vineyard_id", "recorded_at"}))
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

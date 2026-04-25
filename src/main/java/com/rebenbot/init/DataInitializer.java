@@ -67,7 +67,7 @@ public class DataInitializer implements CommandLineRunner {
             LocalDate endDate = LocalDate.now();
             LocalDate startDate = LocalDate.of(endDate.getYear(), 4, 1);  // April 1 of current year
             
-            log.info("Seeding historical weather data from Meteoblue API for {} to {}...", startDate, endDate);
+            log.info("Seeding historical weather data from Open-Meteo API for {} (inclusive) to {} (inclusive)", startDate, endDate);
             var historicalData = weatherService.fetchAndStoreHistoricalWeatherData(startDate, endDate);
             
             if (historicalData.isEmpty()) {

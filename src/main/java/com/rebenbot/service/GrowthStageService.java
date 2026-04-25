@@ -83,7 +83,7 @@ public class GrowthStageService {
         List<String> dateStrings = weatherDataRepository.findDistinctWeatherDates(springStart, endOfDay);
 
         if (dateStrings.isEmpty()) {
-            log.warn("No weather data available for GDD calculation");
+            log.warn("No weather data available for GDD calculation between {} and {}", springStart, endOfDay);
             return 0.0;
         }
 
@@ -98,9 +98,6 @@ public class GrowthStageService {
             double dailyAvgTemp = avgTemp.orElse(BASE_TEMP);
             double dailyGdd = Math.max(0, dailyAvgTemp - BASE_TEMP);
             totalGdd += dailyGdd;
-            
-            log.debug("GDD for {}: avg_temp={}°C, daily_gdd={}°, total={}°", 
-                    date, String.format("%.1f", dailyAvgTemp), String.format("%.1f", dailyGdd), String.format("%.1f", totalGdd));
         }
 
         log.info("Accumulated GDD from April 1 to {}: {}°", toDate, String.format("%.1f", totalGdd));
