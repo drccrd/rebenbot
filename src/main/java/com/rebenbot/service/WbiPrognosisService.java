@@ -159,7 +159,21 @@ public class WbiPrognosisService {
                 // Parse for infection risk information
                 parseRiskData(text, prognosis);
                 
-                prognosisRepository.save(prognosis);
+                try {
+                    prognosisRepository.save(prognosis);
+                } catch (Exception e) {
+                    // Handle race condition where another thread inserted the same record
+                    if (e.getMessage() != null && e.getMessage().contains("duplicate key")) {
+                        log.info("Record for {} on {} already exists, skipping insert", disease, LocalDate.now());
+                        // Try to fetch it again
+                        existing = prognosisRepository.findByDiseaseAndForecastDate(disease, LocalDate.now());
+                        if (existing.isPresent()) {
+                            prognosis = existing.get();
+                        }
+                    } else {
+                        throw e;
+                    }
+                }
                 
                 // Log with disease-specific details
                 if ("peronospora".equalsIgnoreCase(disease)) {
