@@ -237,66 +237,137 @@
       <section class="spray-diary-section">
         <h2>Spray Diary</h2>
         <div class="diary-container">
-          <!-- Log New Spray Form -->
+          <!-- Log New Entry Form -->
           <div class="log-spray-card">
-            <h3>📝 Log Spray Application</h3>
-            <form @submit.prevent="recordSpray" class="spray-form">
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="fungicide-select">Fungicide</label>
-                  <select id="fungicide-select" v-model="newSpray.fungicideId" required>
-                    <option value="">Select a fungicide...</option>
-                    <option v-for="fung in fungicides" :key="fung.id" :value="fung.id">
-                      {{ fung.name }}
-                    </option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label for="disease-select">Disease Target</label>
-                  <select id="disease-select" v-model="newSpray.diseaseId" required>
-                    <option value="">Select disease...</option>
-                    <option v-for="disease in diseases" :key="disease.id" :value="disease.id">
-                      {{ disease.commonName }}
-                    </option>
-                  </select>
-                </div>
-              </div>
+            <div class="form-mode-toggle">
+              <button 
+                @click="entryMode = 'spray'"
+                :class="['mode-btn', { active: entryMode === 'spray' }]"
+              >
+                💊 Record Spray
+              </button>
+              <button 
+                @click="entryMode = 'note'"
+                :class="['mode-btn', { active: entryMode === 'note' }]"
+              >
+                📝 Add Diary Note
+              </button>
+            </div>
 
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="spray-date">Application Date & Time</label>
-                  <input id="spray-date" type="datetime-local" v-model="newSpray.applicationDate" required />
-                </div>
-                <div class="form-group">
-                  <label for="growth-stage">Growth Stage (BBCH)</label>
-                  <input id="growth-stage" type="text" v-model="newSpray.growthStageBbch" placeholder="e.g., 75" />
-                </div>
-              </div>
+            <h3 v-if="entryMode === 'spray'">💊 Log Spray Application</h3>
+            <h3 v-else>📝 Add Diary Entry</h3>
 
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="temp">Temperature (°C)</label>
-                  <input id="temp" type="number" v-model.number="newSpray.temperatureC" step="0.1" />
+            <form @submit.prevent="recordEntry" class="spray-form">
+              <!-- SPRAY MODE FIELDS -->
+              <template v-if="entryMode === 'spray'">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="fungicide-select">Fungicide <span class="required">*</span></label>
+                    <select id="fungicide-select" v-model="newSpray.fungicideId" required>
+                      <option value="">Select a fungicide...</option>
+                      <option v-for="fung in fungicides" :key="fung.id" :value="fung.id">
+                        {{ fung.name }}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="disease-select">Disease Target <span class="required">*</span></label>
+                    <select id="disease-select" v-model="newSpray.diseaseId" required>
+                      <option value="">Select disease...</option>
+                      <option v-for="disease in diseases" :key="disease.id" :value="disease.id">
+                        {{ disease.commonName }}
+                      </option>
+                    </select>
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label for="humidity">Humidity (%)</label>
-                  <input id="humidity" type="number" v-model.number="newSpray.humidityPercent" step="0.1" min="0" max="100" />
-                </div>
-                <div class="form-group">
-                  <label for="wind">Wind Speed (m/s)</label>
-                  <input id="wind" type="number" v-model.number="newSpray.windSpeedMsec" step="0.1" min="0" />
-                </div>
-              </div>
 
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="spray-date">Application Date & Time <span class="required">*</span></label>
+                    <input id="spray-date" type="datetime-local" v-model="newSpray.applicationDate" required />
+                  </div>
+                  <div class="form-group">
+                    <label for="growth-stage">Growth Stage (BBCH)</label>
+                    <input id="growth-stage" type="text" v-model="newSpray.growthStageBbch" placeholder="e.g., 75" />
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="temp">Temperature (°C)</label>
+                    <input id="temp" type="number" v-model.number="newSpray.temperatureC" step="0.1" />
+                  </div>
+                  <div class="form-group">
+                    <label for="humidity">Humidity (%)</label>
+                    <input id="humidity" type="number" v-model.number="newSpray.humidityPercent" step="0.1" min="0" max="100" />
+                  </div>
+                  <div class="form-group">
+                    <label for="wind">Wind Speed (m/s)</label>
+                    <input id="wind" type="number" v-model.number="newSpray.windSpeedMsec" step="0.1" min="0" />
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="amount">Fungicide Amount Applied (liters)</label>
+                    <input id="amount" type="number" v-model.number="newSpray.amountFungicideAppliedLiters" step="0.01" min="0.01" placeholder="Min 0.01 L (10ml)" />
+                  </div>
+                </div>
+              </template>
+
+              <!-- DIARY NOTE MODE FIELDS -->
+              <template v-else>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="note-date">Date & Time <span class="required">*</span></label>
+                    <input id="note-date" type="datetime-local" v-model="newSpray.applicationDate" required />
+                  </div>
+                  <div class="form-group">
+                    <label for="note-type">Entry Type <span class="required">*</span></label>
+                    <select id="note-type" v-model="newSpray.entryType" required>
+                      <option value="">Select type...</option>
+                      <option value="OBSERVATION">Observation</option>
+                      <option value="WEATHER">Weather</option>
+                      <option value="PEST_DISEASE">Pest/Disease</option>
+                      <option value="MAINTENANCE">Maintenance</option>
+                      <option value="HARVEST">Harvest</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="note-title">Title <span class="required">*</span></label>
+                    <input id="note-title" type="text" v-model="newSpray.title" placeholder="e.g., Early budbreak observed" required />
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="note-growth">Growth Stage (BBCH)</label>
+                    <input id="note-growth" type="text" v-model="newSpray.growthStageBbch" placeholder="e.g., 09" />
+                  </div>
+                </div>
+              </template>
+
+              <!-- COMMON FIELDS -->
               <div class="form-row">
                 <div class="form-group full-width">
-                  <label for="notes">Notes</label>
-                  <textarea id="notes" v-model="newSpray.notes" placeholder="Conditions, application notes, etc."></textarea>
+                  <label for="notes">Notes / Description</label>
+                  <textarea id="notes" v-model="newSpray.notes" :placeholder="entryMode === 'spray' ? 'Conditions, application notes, etc.' : 'Detailed observation or notes'"></textarea>
+                </div>
+              </div>
+
+              <div v-if="entryMode === 'note'" class="form-row">
+                <div class="form-group full-width">
+                  <label for="tags">Tags (comma-separated)</label>
+                  <input id="tags" type="text" v-model="newSpray.tags" placeholder="e.g., spring, budbreak, phenology" />
                 </div>
               </div>
 
               <button type="submit" :disabled="recordingSpray" class="btn-submit">
-                {{ recordingSpray ? 'Recording...' : 'Record Spray' }}
+                {{ recordingSpray ? 'Saving...' : (entryMode === 'spray' ? 'Record Spray' : 'Add Note') }}
               </button>
             </form>
           </div>
@@ -695,6 +766,7 @@ export default {
         bbch: 55
       },
       currentYear: new Date().getFullYear(),
+      entryMode: 'spray',
       newSpray: {
         fungicideId: '',
         diseaseId: '',
@@ -703,7 +775,11 @@ export default {
         temperatureC: null,
         humidityPercent: null,
         windSpeedMsec: null,
-        notes: ''
+        amountFungicideAppliedLiters: null,
+        notes: '',
+        title: '',
+        entryType: '',
+        tags: ''
       },
       recordingSpray: false,
       loading: false,
@@ -1056,12 +1132,19 @@ export default {
     },
     async fetchRecentSprays() {
       try {
-        const response = await axios.get('/api/v1/spray-diary/recent/1')
+        const response = await axios.get('/api/v1/vineyard-logs/recent-sprays/1')
         if (response.data && response.data.sprays) {
           this.recentSprays = response.data.sprays
         }
       } catch (err) {
         console.warn('Failed to fetch recent sprays:', err)
+      }
+    },
+    async recordEntry() {
+      if (this.entryMode === 'spray') {
+        return this.recordSpray()
+      } else {
+        return this.recordDiaryNote()
       }
     },
     async recordSpray() {
@@ -1081,10 +1164,11 @@ export default {
           temperatureC: this.newSpray.temperatureC,
           humidityPercent: this.newSpray.humidityPercent,
           windSpeedMsec: this.newSpray.windSpeedMsec,
+          amountFungicideAppliedLiters: this.newSpray.amountFungicideAppliedLiters || null,
           notes: this.newSpray.notes
         }
 
-        const response = await axios.post('/api/v1/spray-diary/record', payload)
+        const response = await axios.post('/api/v1/vineyard-logs/record-spray', payload)
         
         if (response.data && response.data.status === 'SUCCESS') {
           alert('Spray recorded successfully!')
@@ -1097,13 +1181,64 @@ export default {
             temperatureC: null,
             humidityPercent: null,
             windSpeedMsec: null,
-            notes: ''
+            amountFungicideAppliedLiters: null,
+            notes: '',
+            title: '',
+            entryType: '',
+            tags: ''
           }
           // Refresh recent sprays
           await this.fetchRecentSprays()
         }
       } catch (err) {
         console.error('Error recording spray:', err)
+        alert(`Error: ${err.response?.data?.message || err.message}`)
+      } finally {
+        this.recordingSpray = false
+      }
+    },
+    async recordDiaryNote() {
+      if (!this.newSpray.applicationDate || !this.newSpray.title || !this.newSpray.entryType) {
+        alert('Please fill in all required fields')
+        return
+      }
+
+      this.recordingSpray = true
+      try {
+        const payload = {
+          vineyardId: 1,
+          entryDate: this.newSpray.applicationDate,
+          title: this.newSpray.title,
+          description: this.newSpray.notes,
+          entryType: this.newSpray.entryType,
+          growthStageBbch: this.newSpray.growthStageBbch || null,
+          tags: this.newSpray.tags
+        }
+
+        const response = await axios.post('/api/v1/vineyard-logs/create-entry', payload)
+        
+        if (response.data && response.data.status === 'SUCCESS') {
+          alert('Diary entry created successfully!')
+          // Reset form
+          this.newSpray = {
+            fungicideId: '',
+            diseaseId: '',
+            applicationDate: '',
+            growthStageBbch: '',
+            temperatureC: null,
+            humidityPercent: null,
+            windSpeedMsec: null,
+            amountFungicideAppliedLiters: null,
+            notes: '',
+            title: '',
+            entryType: '',
+            tags: ''
+          }
+          // Refresh recent sprays
+          await this.fetchRecentSprays()
+        }
+      } catch (err) {
+        console.error('Error creating diary entry:', err)
         alert(`Error: ${err.response?.data?.message || err.message}`)
       } finally {
         this.recordingSpray = false
@@ -2541,4 +2676,42 @@ h2 {
   color: #512da8;
   background: transparent;
 }
+
+/* Form Mode Toggle */
+.form-mode-toggle {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #e0e0e0;
+  padding-bottom: 10px;
+}
+
+.mode-btn {
+  padding: 10px 20px;
+  border: none;
+  background: #f5f5f5;
+  color: #666;
+  cursor: pointer;
+  font-weight: 500;
+  border-radius: 4px 4px 0 0;
+  transition: all 0.3s ease;
+  border-bottom: 3px solid transparent;
+}
+
+.mode-btn:hover {
+  background: #efefef;
+}
+
+.mode-btn.active {
+  background: white;
+  color: #2e7d32;
+  border-bottom-color: #2e7d32;
+}
+
+/* Required asterisk */
+.required {
+  color: #d32f2f;
+  margin-left: 2px;
+}
+
 </style>

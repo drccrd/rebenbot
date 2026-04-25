@@ -124,24 +124,6 @@ CREATE TABLE IF NOT EXISTS risk_assessment (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Spray Application table (existing concept)
-CREATE TABLE IF NOT EXISTS spray_application (
-    id BIGSERIAL PRIMARY KEY,
-    vineyard_id BIGINT NOT NULL REFERENCES vineyards(id) ON DELETE CASCADE,
-    fungicide_id BIGINT NOT NULL REFERENCES fungicide_product(id),
-    disease_id BIGINT NOT NULL REFERENCES fungal_diseases(id),
-    application_date TIMESTAMP NOT NULL,
-    growth_stage_bbch VARCHAR(10),
-    dosage_liters_per_are DOUBLE PRECISION,
-    temperature_c DOUBLE PRECISION,
-    humidity_percent DOUBLE PRECISION,
-    wind_speed_msec DOUBLE PRECISION,
-    notes TEXT,
-    efficacy_assessment DOUBLE PRECISION,
-    efficacy_notes TEXT,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
 -- Growth Stage table - BBCH stages and thresholds
 CREATE TABLE IF NOT EXISTS growth_stage (
     id BIGSERIAL PRIMARY KEY,
@@ -155,12 +137,48 @@ CREATE TABLE IF NOT EXISTS growth_stage (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Unified Vineyard Log Entry table - Consolidates spray applications and general diary entries
+-- log_type determines whether this is a spray, observation, or other type of entry
+CREATE TABLE IF NOT EXISTS vineyard_log_entry (
+    id BIGSERIAL PRIMARY KEY,
+    vineyard_id BIGINT NOT NULL REFERENCES vineyards(id) ON DELETE CASCADE,
+    log_type VARCHAR(50) NOT NULL CHECK (log_type IN ('SPRAY', 'OBSERVATION', 'WEATHER', 'PEST_DISEASE', 'MAINTENANCE', 'HARVEST', 'OTHER')),
+    entry_date TIMESTAMP NOT NULL,
+    
+    -- Spray-specific fields (nullable, only populated for log_type = 'SPRAY')
+    fungicide_id BIGINT REFERENCES fungicide_product(id),
+    disease_id BIGINT REFERENCES fungal_diseases(id),
+    dosage_liters_per_are DOUBLE PRECISION,
+    amount_fungicide_applied_liters DOUBLE PRECISION,
+    temperature_c DOUBLE PRECISION,
+    humidity_percent DOUBLE PRECISION,
+    wind_speed_msec DOUBLE PRECISION,
+    efficacy_assessment DOUBLE PRECISION,
+    efficacy_notes TEXT,
+    
+    -- Diary-specific fields (nullable, only populated for diary entry types)
+    title VARCHAR(255),
+    description TEXT,
+    entry_type VARCHAR(50) CHECK (entry_type IN ('OBSERVATION', 'WEATHER', 'PEST_DISEASE', 'MAINTENANCE', 'HARVEST', 'OTHER')),
+    tags VARCHAR(500),
+    
+    -- Common fields
+    growth_stage_bbch VARCHAR(10),
+    notes TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes for performance
 CREATE INDEX idx_weather_vineyard_id ON weather_data(vineyard_id);
 CREATE INDEX idx_weather_recorded_at ON weather_data(recorded_at);
 CREATE INDEX idx_risk_vineyard_disease ON risk_assessment(vineyard_id, disease_id);
 CREATE INDEX idx_risk_assessed_at ON risk_assessment(assessed_at);
-CREATE INDEX idx_spray_vineyard_date ON spray_application(vineyard_id, application_date);
+CREATE INDEX idx_log_entry_vineyard_date ON vineyard_log_entry(vineyard_id, entry_date DESC);
+CREATE INDEX idx_log_entry_log_type ON vineyard_log_entry(vineyard_id, log_type);
+CREATE INDEX idx_log_entry_entry_type ON vineyard_log_entry(vineyard_id, entry_type);
+CREATE INDEX idx_log_entry_tags ON vineyard_log_entry(tags);
+CREATE INDEX idx_log_entry_fungicide ON vineyard_log_entry(fungicide_id);
 CREATE INDEX idx_fungicide_approval_region ON fungicide_approval(region);
 CREATE INDEX idx_fungicide_target_disease ON fungicide_target_disease(product_id, disease_id);
 CREATE INDEX idx_growth_stage_vineyard ON growth_stage(vineyard_id);

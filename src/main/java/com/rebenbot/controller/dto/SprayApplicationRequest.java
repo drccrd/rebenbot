@@ -40,6 +40,11 @@ public class SprayApplicationRequest {
     @DecimalMax("50")
     private Double windSpeedMsec;
 
+    @NotNull(message = "Amount of fungicide applied is required")
+    @DecimalMin(value = "0.01", message = "Amount must be at least 10ml (0.01 liters)")
+    @DecimalMax(value = "10000", message = "Amount cannot exceed 10000 liters")
+    private Double amountFungicideAppliedLiters;
+
     @Size(max = 1000, message = "Notes must not exceed 1000 characters")
     private String notes;
 
@@ -50,7 +55,7 @@ public class SprayApplicationRequest {
     public SprayApplicationRequest(Long vineyardId, Long fungicideId, Long diseaseId,
                                    LocalDateTime applicationDate, String growthStageBbch,
                                    Double temperatureC, Double humidityPercent, Double windSpeedMsec,
-                                   String notes) {
+                                   Double amountFungicideAppliedLiters, String notes) {
         this.vineyardId = vineyardId;
         this.fungicideId = fungicideId;
         this.diseaseId = diseaseId;
@@ -59,6 +64,7 @@ public class SprayApplicationRequest {
         this.temperatureC = temperatureC;
         this.humidityPercent = humidityPercent;
         this.windSpeedMsec = windSpeedMsec;
+        this.amountFungicideAppliedLiters = amountFungicideAppliedLiters;
         this.notes = notes;
     }
 
@@ -125,6 +131,14 @@ public class SprayApplicationRequest {
 
     public void setWindSpeedMsec(Double windSpeedMsec) {
         this.windSpeedMsec = windSpeedMsec;
+    }
+
+    public Double getAmountFungicideAppliedLiters() {
+        return amountFungicideAppliedLiters;
+    }
+
+    public void setAmountFungicideAppliedLiters(Double amountFungicideAppliedLiters) {
+        this.amountFungicideAppliedLiters = amountFungicideAppliedLiters;
     }
 
     public String getNotes() {
