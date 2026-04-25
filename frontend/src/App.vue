@@ -29,8 +29,11 @@
 
       <!-- Current Weather -->
       <section class="weather-section" v-if="currentWeather">
-        <h2>Current Weather</h2>
-        <div class="weather-grid">
+        <h2 @click="toggleSection('weather')" class="section-header" :class="{ collapsed: collapsedSections.weather }">
+          <span class="section-toggle">{{ collapsedSections.weather ? '▶' : '▼' }}</span>
+          Current Weather
+        </h2>
+        <div v-show="!collapsedSections.weather" class="weather-grid">
           <div class="weather-card">
             <span class="weather-icon">🌡️</span>
             <span class="weather-label">Temperature</span>
@@ -56,8 +59,11 @@
 
       <!-- Growth Stage -->
       <section class="growth-stage-section" v-if="growthStage">
-        <h2>Vine Growth Stage</h2>
-        <div class="growth-stage-card">
+        <h2 @click="toggleSection('growthStage')" class="section-header" :class="{ collapsed: collapsedSections.growthStage }">
+          <span class="section-toggle">{{ collapsedSections.growthStage ? '▶' : '▼' }}</span>
+          Vine Growth Stage
+        </h2>
+        <div v-show="!collapsedSections.growthStage" class="growth-stage-card">
           <div class="stage-display">
             <div class="stage-icon">🌱</div>
             <div class="stage-info">
@@ -104,8 +110,11 @@
 
       <!-- Disease Risk Assessment -->
       <section class="risk-section" v-if="risks.length > 0">
-        <h2>Infection Risk Assessment</h2>
-        <div class="risk-grid">
+        <h2 @click="toggleSection('riskAssessment')" class="section-header" :class="{ collapsed: collapsedSections.riskAssessment }">
+          <span class="section-toggle">{{ collapsedSections.riskAssessment ? '▶' : '▼' }}</span>
+          Infection Risk Assessment
+        </h2>
+        <div v-show="!collapsedSections.riskAssessment" class="risk-grid">
           <div 
             v-for="risk in risks" 
             :key="risk.id"
@@ -130,8 +139,11 @@
 
       <!-- WBI Freiburg Disease Prognosis -->
       <section class="wbi-section" v-if="wbiPrognosis.peronospora || wbiPrognosis.oidium">
-        <h2>📊 WBI Freiburg Disease Prognosis</h2>
-        <div class="wbi-grid">
+        <h2 @click="toggleSection('wbiPrognosis')" class="section-header" :class="{ collapsed: collapsedSections.wbiPrognosis }">
+          <span class="section-toggle">{{ collapsedSections.wbiPrognosis ? '▶' : '▼' }}</span>
+          📊 WBI Freiburg Disease Prognosis
+        </h2>
+        <div v-show="!collapsedSections.wbiPrognosis" class="wbi-grid">
           <!-- Peronospora WBI Prognosis -->
           <div v-if="wbiPrognosis.peronospora" class="wbi-card wbi-prognosis-card">
             <div class="wbi-header">
@@ -190,8 +202,11 @@
 
       <!-- Rainfall & Spray Timing -->
       <section class="spray-timing-section" v-if="rainfallSummary || sprayWindow">
-        <h2>Rainfall & Spray Timing</h2>
-        <div class="spray-grid">
+        <h2 @click="toggleSection('rainfallTiming')" class="section-header" :class="{ collapsed: collapsedSections.rainfallTiming }">
+          <span class="section-toggle">{{ collapsedSections.rainfallTiming ? '▶' : '▼' }}</span>
+          Rainfall & Spray Timing
+        </h2>
+        <div v-show="!collapsedSections.rainfallTiming" class="spray-grid">
           <!-- Rainfall Information -->
           <div class="rainfall-card" v-if="rainfallSummary">
             <h3>Rainfall Summary (24h)</h3>
@@ -235,8 +250,11 @@
 
       <!-- Spray Diary -->
       <section class="spray-diary-section">
-        <h2>Spray Diary</h2>
-        <div class="diary-container">
+        <h2 @click="toggleSection('sprayLog')" class="section-header" :class="{ collapsed: collapsedSections.sprayLog }">
+          <span class="section-toggle">{{ collapsedSections.sprayLog ? '▶' : '▼' }}</span>
+          Spray Diary
+        </h2>
+        <div v-show="!collapsedSections.sprayLog" class="diary-container">
           <!-- Log New Entry Form -->
           <div class="log-spray-card">
             <div class="form-mode-toggle">
@@ -408,8 +426,11 @@
 
       <!-- Fungicide Recommendations -->
       <section class="recommendations-section" v-if="recommendations.length > 0">
-        <h2>Recommended Fungicides</h2>
-        <div class="recommendations-list">
+        <h2 @click="toggleSection('recommendations')" class="section-header" :class="{ collapsed: collapsedSections.recommendations }">
+          <span class="section-toggle">{{ collapsedSections.recommendations ? '▶' : '▼' }}</span>
+          Recommended Fungicides
+        </h2>
+        <div v-show="!collapsedSections.recommendations" class="recommendations-list">
           <div class="fungicide-cards">
             <div 
               v-for="fung in recommendations" 
@@ -430,8 +451,11 @@
 
       <!-- Resistance Prevention Guidelines -->
       <section class="resistance-guidelines-section" v-if="recommendations.length > 0">
-        <h2>🔒 Fungicide Resistance Prevention</h2>
-        <div class="guidelines-container">
+        <h2 @click="toggleSection('resistanceGuidelines')" class="section-header" :class="{ collapsed: collapsedSections.resistanceGuidelines }">
+          <span class="section-toggle">{{ collapsedSections.resistanceGuidelines ? '▶' : '▼' }}</span>
+          🔒 Fungicide Resistance Prevention
+        </h2>
+        <div v-show="!collapsedSections.resistanceGuidelines" class="guidelines-container">
           <div class="guideline-box">
             <h3>Resistance Management Strategy</h3>
             <ul class="guidelines-list">
@@ -460,34 +484,39 @@
 
       <!-- Fungicide Buying Guide -->
       <section class="buying-guide-section">
-        <h2>💰 Fungicide Buying Guide for the Year</h2>
-        <div v-if="loadingFungicides" class="loading-message">
-          Loading fungicide recommendations...
-        </div>
-        <div v-else-if="Object.keys(fungicidesByDisease).length === 0" class="no-data-message">
-          No fungicide data available. Please refresh the page.
-        </div>
-        <div v-else class="buying-guide-container">
-          <div v-for="disease in diseases" :key="disease.id" class="disease-buying-guide">
-            <h3>{{ disease.icon || '🍇' }} For {{ disease.commonName }}</h3>
-            <div v-if="fungicidesByDisease[disease.id] && fungicidesByDisease[disease.id].length > 0">
-              <div 
-                v-for="fungicide in fungicidesByDisease[disease.id]" 
-                :key="fungicide.id" 
-                class="buying-recommendation"
-              >
-                <div class="product-name">{{ fungicide.name }} ({{ fungicide.activeSubstance }})</div>
-                <div class="product-details">
-                  <span class="detail-item"><strong>Concentration:</strong> {{ fungicide.concentration }}%</span>
-                  <span v-if="fungicide.manufacturer" class="detail-item"><strong>Manufacturer:</strong> {{ fungicide.manufacturer }}</span>
-                  <span v-if="fungicide.fracCode" class="detail-item"><strong>FRAC Code:</strong> {{ fungicide.fracCode }}</span>
-                  <span v-if="fungicide.fracDescription" class="detail-item"><strong>Mode of Action:</strong> {{ fungicide.fracDescription }}</span>
-                  <span class="detail-item"><strong>Recommendation:</strong> Rotate with different FRAC codes to prevent resistance</span>
+        <h2 @click="toggleSection('buyingGuide')" class="section-header" :class="{ collapsed: collapsedSections.buyingGuide }">
+          <span class="section-toggle">{{ collapsedSections.buyingGuide ? '▶' : '▼' }}</span>
+          💰 Fungicide Buying Guide for the Year
+        </h2>
+        <div v-show="!collapsedSections.buyingGuide">
+          <div v-if="loadingFungicides" class="loading-message">
+            Loading fungicide recommendations...
+          </div>
+          <div v-else-if="Object.keys(fungicidesByDisease).length === 0" class="no-data-message">
+            No fungicide data available. Please refresh the page.
+          </div>
+          <div v-else class="buying-guide-container">
+            <div v-for="disease in diseases" :key="disease.id" class="disease-buying-guide">
+              <h3>{{ disease.icon || '🍇' }} For {{ disease.commonName }}</h3>
+              <div v-if="fungicidesByDisease[disease.id] && fungicidesByDisease[disease.id].length > 0">
+                <div 
+                  v-for="fungicide in fungicidesByDisease[disease.id]" 
+                  :key="fungicide.id" 
+                  class="buying-recommendation"
+                >
+                  <div class="product-name">{{ fungicide.name }} ({{ fungicide.activeSubstance }})</div>
+                  <div class="product-details">
+                    <span class="detail-item"><strong>Concentration:</strong> {{ fungicide.concentration }}%</span>
+                    <span v-if="fungicide.manufacturer" class="detail-item"><strong>Manufacturer:</strong> {{ fungicide.manufacturer }}</span>
+                    <span v-if="fungicide.fracCode" class="detail-item"><strong>FRAC Code:</strong> {{ fungicide.fracCode }}</span>
+                    <span v-if="fungicide.fracDescription" class="detail-item"><strong>Mode of Action:</strong> {{ fungicide.fracDescription }}</span>
+                    <span class="detail-item"><strong>Recommendation:</strong> Rotate with different FRAC codes to prevent resistance</span>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div v-else class="no-products-message">
-              No approved fungicides available for {{ disease.commonName }}
+              <div v-else class="no-products-message">
+                No approved fungicides available for {{ disease.commonName }}
+              </div>
             </div>
           </div>
         </div>
@@ -495,9 +524,12 @@
 
       <!-- Seasonal Spray Schedule -->
       <section class="spray-schedule-section">
-        <h2>📅 Seasonal Spray Schedule (Year-Round Plan)</h2>
-        <div class="schedule-note">Adjust dates based on actual weather conditions and disease pressure. Monitor forecasts weekly.</div>
-        <div class="schedule-grid">
+        <h2 @click="toggleSection('spraySchedule')" class="section-header" :class="{ collapsed: collapsedSections.spraySchedule }">
+          <span class="section-toggle">{{ collapsedSections.spraySchedule ? '▶' : '▼' }}</span>
+          📅 Seasonal Spray Schedule (Year-Round Plan)
+        </h2>
+        <div v-show="!collapsedSections.spraySchedule" class="schedule-note">Adjust dates based on actual weather conditions and disease pressure. Monitor forecasts weekly.</div>
+        <div v-show="!collapsedSections.spraySchedule" class="schedule-grid">
           <div class="month-schedule">
             <h3>April - Bud Break (Risk: MEDIUM)</h3>
             <div class="schedule-entry">
@@ -587,8 +619,11 @@
 
       <!-- Dosage Calculator -->
       <section class="dosage-calculator-section">
-        <h2>⚗️ Fungicide Dosage Calculator</h2>
-        <div class="calculator-container">
+        <h2 @click="toggleSection('dosageCalculator')" class="section-header" :class="{ collapsed: collapsedSections.dosageCalculator }">
+          <span class="section-toggle">{{ collapsedSections.dosageCalculator ? '▶' : '▼' }}</span>
+          ⚗️ Fungicide Dosage Calculator
+        </h2>
+        <div v-show="!collapsedSections.dosageCalculator" class="calculator-container">
           <div class="calc-tabs">
             <button 
               @click="calcMethod = 'leafwall'" 
@@ -689,8 +724,11 @@
 
       <!-- External Resources -->
       <section class="external-resources-section">
-        <h2>📚 Helpful Resources</h2>
-        <div class="resources-grid">
+        <h2 @click="toggleSection('resources')" class="section-header" :class="{ collapsed: collapsedSections.resources }">
+          <span class="section-toggle">{{ collapsedSections.resources ? '▶' : '▼' }}</span>
+          📚 Helpful Resources
+        </h2>
+        <div v-show="!collapsedSections.resources" class="resources-grid">
           <a href="https://www.vitimeteo-bw.de/" target="_blank" class="resource-link" title="Weather-based disease management tool for German viticulture">
             <span class="resource-icon">🌡️</span>
             <span class="resource-name">VitiMeteo-BW</span>
@@ -784,7 +822,22 @@ export default {
       recordingSpray: false,
       loading: false,
       error: null,
-      lastUpdate: 'Never'
+      lastUpdate: 'Never',
+      // Collapsible sections state
+      collapsedSections: {
+        weather: false,
+        rainfallTiming: false,
+        growthStage: false,
+        riskAssessment: false,
+        wbiPrognosis: false,
+        sprayLog: false,
+        recommendations: false,
+        resistanceGuidelines: false,
+        buyingGuide: false,
+        spraySchedule: false,
+        dosageCalculator: false,
+        resources: false
+      }
     }
   },
   mounted() {
@@ -1015,6 +1068,9 @@ export default {
       } finally {
         this.settingStage = false
       }
+    },
+    toggleSection(sectionName) {
+      this.collapsedSections[sectionName] = !this.collapsedSections[sectionName]
     },
     groupRecommendations() {
       const grouped = {}
@@ -2712,6 +2768,33 @@ h2 {
 .required {
   color: #d32f2f;
   margin-left: 2px;
+}
+
+/* Collapsible Sections */
+.section-header {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  user-select: none;
+  transition: color 0.3s ease;
+  padding: 10px 0;
+}
+
+.section-header:hover {
+  color: #667eea;
+  opacity: 0.8;
+}
+
+.section-toggle {
+  display: inline-block;
+  font-size: 0.9em;
+  transition: transform 0.3s ease;
+  min-width: 20px;
+}
+
+.section-header.collapsed .section-toggle {
+  transform: rotate(-90deg);
 }
 
 </style>
