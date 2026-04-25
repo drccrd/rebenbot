@@ -235,3 +235,21 @@ INSERT INTO rotation_strategy (disease_id, recommended_frac_codes, min_days_befo
     (1, 'M,U,C', 14, 'Peronospora: Alternate between contact (M), cell wall inhibitors (U), and acylamines (C) to prevent resistance'),
     (2, 'M,3', 21, 'Oidium: Alternate between sulfur (M) and DMI fungicides (3) to prevent resistance')
 ON CONFLICT (disease_id) DO NOTHING;
+
+-- WBI Freiburg Prognosis table - for model validation with official disease forecasts
+CREATE TABLE IF NOT EXISTS wbi_prognosis (
+    id BIGSERIAL PRIMARY KEY,
+    forecast_date DATE NOT NULL,
+    disease VARCHAR(50) NOT NULL,
+    risk_level VARCHAR(50) NOT NULL,
+    risk_score INTEGER,
+    incubation_end_date DATE,
+    incubation_accuracy INTEGER,
+    created_at DATE NOT NULL DEFAULT CURRENT_DATE,
+    source_url VARCHAR(512),
+    raw_text TEXT,
+    UNIQUE(forecast_date, disease)
+);
+
+CREATE INDEX idx_wbi_disease_date ON wbi_prognosis(disease, forecast_date DESC);
+CREATE INDEX idx_wbi_created_at ON wbi_prognosis(created_at);

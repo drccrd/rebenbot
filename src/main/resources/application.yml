@@ -33,4 +33,12 @@ meteoblue:
 logging:
   level:
     root: INFO
+    org.flywaydb: INFO
     com.rebenbot: INFO
+    # Suppress PDFBox/FontBox errors and warnings (unavoidable during PDF text extraction)
+    org.apache.pdfbox: ERROR
+    org.apache.fontbox: ERROR
+    org.apache.fontbox.ttf.GlyphSubstitutionTable: OFF
+    org.apache.fontbox.ttf.CmapSubtable: OFF
+    org.apache.pdfbox.pdmodel.font: OFF
+    org.apache.pdfbox.text.PDFTextStripper: ERROR

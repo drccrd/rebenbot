@@ -25,32 +25,45 @@ public class GrowthStageService {
     // BBCH Growth Stages for Grapevines
     public static final Map<String, String> BBCH_STAGES = Map.ofEntries(
         Map.entry("BUD_SWELL", "BBCH 01 - Buds begin to swell"),
-        Map.entry("BUD_BREAK", "BBCH 03 - Buds break, first leaves separate"),
-        Map.entry("SHOOT_GROWTH", "BBCH 05 - Shoots grow, leaves unfold"),
-        Map.entry("LEAF_DEVELOPMENT", "BBCH 09 - Leaves fully developed"),
-        Map.entry("INFLORESCENCE_EMERGENCE", "BBCH 10 - Inflorescence emerges"),
-        Map.entry("FLOWERING", "BBCH 65 - Flowering"),
-        Map.entry("FRUIT_SET", "BBCH 71 - Fruit set"),
-        Map.entry("BERRY_GROWTH", "BBCH 77 - Berry growth, berries still firm"),
-        Map.entry("VERAISON", "BBCH 81 - Veraison - berries begin to color"),
+        Map.entry("FIRST_LEAVES", "BBCH 09 - First signs of bud break"),
+        Map.entry("ONE_LEAF", "BBCH 11 - First leaf unfolded"),
+        Map.entry("TWO_LEAVES", "BBCH 12 - Two leaves unfolded"),
+        Map.entry("THREE_LEAVES", "BBCH 13 - Three leaves unfolded"),
+        Map.entry("FOUR_LEAVES", "BBCH 14 - Four leaves unfolded"),
+        Map.entry("FIVE_LEAVES", "BBCH 15 - Five leaves unfolded"),
+        Map.entry("SIX_LEAVES", "BBCH 16 - Six leaves unfolded"),
+        Map.entry("SEVEN_LEAVES", "BBCH 17 - Seven leaves unfolded"),
+        Map.entry("EIGHT_LEAVES", "BBCH 18 - Eight or more leaves unfolded"),
+        Map.entry("INFLORESCENCE_EMERGENCE", "BBCH 50-55 - Inflorescence visible"),
+        Map.entry("FLOWERING", "BBCH 60-68 - Flowering"),
+        Map.entry("FRUIT_SET", "BBCH 70-73 - Fruit set"),
+        Map.entry("BERRY_GROWTH", "BBCH 75-79 - Berry growth"),
+        Map.entry("VERAISON", "BBCH 81-88 - Veraison - berries changing color"),
         Map.entry("BERRY_RIPE", "BBCH 89 - Berries ripe for harvest"),
         Map.entry("DORMANT", "BBCH 95 - Dormant, leaves fall or fallen")
     );
 
     // GDD Thresholds for each stage (cumulative from spring)
+    // Calibrated against vitimeteo Molitor (2014) model for Schriesheim region
     // Must be a sorted map to ensure deterministic ordering
     private static final List<Map.Entry<String, Integer>> GDD_THRESHOLDS = List.of(
-        Map.entry("BUD_SWELL", 0),          // Start of season
-        Map.entry("BUD_BREAK", 50),         // ~50 GDD
-        Map.entry("SHOOT_GROWTH", 100),     // ~100 GDD
-        Map.entry("LEAF_DEVELOPMENT", 200), // ~200 GDD
-        Map.entry("INFLORESCENCE_EMERGENCE", 300), // ~300 GDD
-        Map.entry("FLOWERING", 400),        // ~400 GDD (typically mid-May/early June)
-        Map.entry("FRUIT_SET", 500),        // ~500 GDD
-        Map.entry("BERRY_GROWTH", 700),     // ~700 GDD
-        Map.entry("VERAISON", 1100),        // ~1100 GDD (typically late Aug/early Sept)
-        Map.entry("BERRY_RIPE", 1500),      // ~1500 GDD
-        Map.entry("DORMANT", 2500)          // End of season
+        Map.entry("BUD_SWELL", 0),          // BBCH 01 - Start of season
+        Map.entry("FIRST_LEAVES", 3),       // BBCH 09 - First signs of bud break (new leaves visible)
+        Map.entry("ONE_LEAF", 15),          // BBCH 11 - First leaf unfolded
+        Map.entry("TWO_LEAVES", 26),        // BBCH 12 - Two leaves unfolded
+        Map.entry("THREE_LEAVES", 34),      // BBCH 13 - Three leaves unfolded
+        Map.entry("FOUR_LEAVES", 44),       // BBCH 14 - Four leaves unfolded
+        Map.entry("FIVE_LEAVES", 55),       // BBCH 15 - Five leaves unfolded
+        Map.entry("SIX_LEAVES", 66),        // BBCH 16 - Six leaves unfolded
+        Map.entry("SEVEN_LEAVES", 77),      // BBCH 17 - Seven leaves unfolded
+        Map.entry("EIGHT_LEAVES", 88),      // BBCH 18 - Eight or more leaves unfolded
+        Map.entry("INFLORESCENCE_EMERGENCE", 110), // BBCH 50+ - Flower cluster development
+        Map.entry("FLOWERING", 130),        // BBCH 60+ - Flowering
+        Map.entry("FRUIT_SET", 160),        // BBCH 70+ - Fruit set
+        Map.entry("BERRY_GROWTH", 200),     // BBCH 75+ - Berries growing
+        Map.entry("VERAISON", 250),         // BBCH 81+ - Véraison (berries changing color)
+        Map.entry("BERRY_RIPE", 300),       // BBCH 89 - Berries fully ripe
+        Map.entry("DORMANT", 400)           // End of season
     );
 
     /**
@@ -86,11 +99,11 @@ public class GrowthStageService {
             double dailyGdd = Math.max(0, dailyAvgTemp - BASE_TEMP);
             totalGdd += dailyGdd;
             
-            log.debug("GDD for {}: avg_temp={:.1f}°C, daily_gdd={:.1f}°, total={:.1f}°", 
-                    date, dailyAvgTemp, dailyGdd, totalGdd);
+            log.debug("GDD for {}: avg_temp={}°C, daily_gdd={}°, total={}°", 
+                    date, String.format("%.1f", dailyAvgTemp), String.format("%.1f", dailyGdd), String.format("%.1f", totalGdd));
         }
 
-        log.info("Accumulated GDD from April 1 to {}: {:.1f}", toDate, totalGdd);
+        log.info("Accumulated GDD from April 1 to {}: {}°", toDate, String.format("%.1f", totalGdd));
         return totalGdd;
     }
 

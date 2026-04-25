@@ -128,6 +128,66 @@
         </div>
       </section>
 
+      <!-- WBI Freiburg Disease Prognosis -->
+      <section class="wbi-section" v-if="wbiPrognosis.peronospora || wbiPrognosis.oidium">
+        <h2>📊 WBI Freiburg Disease Prognosis</h2>
+        <div class="wbi-grid">
+          <!-- Peronospora WBI Prognosis -->
+          <div v-if="wbiPrognosis.peronospora" class="wbi-card wbi-prognosis-card">
+            <div class="wbi-header">
+              <h3>🍂 Peronospora (Downy Mildew)</h3>
+              <span class="wbi-badge" :class="'wbi-risk-' + (wbiPrognosis.peronospora.riskLevel || '').toLowerCase()">
+                {{ wbiPrognosis.peronospora.riskLevel || 'N/A' }}
+              </span>
+            </div>
+            <div class="wbi-score-bar">
+              <div class="wbi-bar" :style="{ width: (wbiPrognosis.peronospora.riskScore || 0) + '%' }"></div>
+            </div>
+            <div class="wbi-details">
+              <p class="wbi-score">
+                <strong>Infection Risk:</strong> {{ wbiPrognosis.peronospora.riskScore || 0 }}%
+              </p>
+              <p v-if="wbiPrognosis.peronospora.incubationEndDate" class="wbi-incubation">
+                <strong>Incubation Period Ends:</strong> {{ formatWbiDate(wbiPrognosis.peronospora.incubationEndDate) }}
+              </p>
+              <p v-if="wbiPrognosis.peronospora.incubationAccuracy" class="wbi-accuracy">
+                <strong>Accuracy Estimate:</strong> {{ wbiPrognosis.peronospora.incubationAccuracy }}%
+              </p>
+              <p class="wbi-forecast-date">
+                <strong>Forecast Date:</strong> {{ formatWbiDate(wbiPrognosis.peronospora.forecastDate) }}
+              </p>
+            </div>
+          </div>
+
+          <!-- Oidium WBI Prognosis -->
+          <div v-if="wbiPrognosis.oidium" class="wbi-card wbi-prognosis-card">
+            <div class="wbi-header">
+              <h3>🌬️ Oidium (Powdery Mildew)</h3>
+              <span class="wbi-badge" :class="'wbi-risk-' + (wbiPrognosis.oidium.riskLevel || '').toLowerCase()">
+                {{ wbiPrognosis.oidium.riskLevel || 'N/A' }}
+              </span>
+            </div>
+            <div class="wbi-score-bar">
+              <div class="wbi-bar" :style="{ width: (wbiPrognosis.oidium.riskScore || 0) + '%' }"></div>
+            </div>
+            <div class="wbi-details">
+              <p class="wbi-score">
+                <strong>Infection Risk:</strong> {{ wbiPrognosis.oidium.riskScore || 0 }}%
+              </p>
+              <p v-if="wbiPrognosis.oidium.incubationEndDate" class="wbi-incubation">
+                <strong>Incubation Period Ends:</strong> {{ formatWbiDate(wbiPrognosis.oidium.incubationEndDate) }}
+              </p>
+              <p v-if="wbiPrognosis.oidium.incubationAccuracy" class="wbi-accuracy">
+                <strong>Accuracy Estimate:</strong> {{ wbiPrognosis.oidium.incubationAccuracy }}%
+              </p>
+              <p class="wbi-forecast-date">
+                <strong>Forecast Date:</strong> {{ formatWbiDate(wbiPrognosis.oidium.forecastDate) }}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Rainfall & Spray Timing -->
       <section class="spray-timing-section" v-if="rainfallSummary || sprayWindow">
         <h2>Rainfall & Spray Timing</h2>
@@ -610,6 +670,10 @@ export default {
       currentWeather: null,
       risks: [],
       recommendations: [],
+      wbiPrognosis: {
+        peronospora: null,
+        oidium: null
+      },
       rainfallSummary: null,
       sprayWindow: null,
       growthStage: null,
@@ -660,6 +724,7 @@ export default {
           this.fetchWeather(),
           this.fetchRiskAssessment(),
           this.fetchRecommendations(),
+          this.fetchWbiPrognosis(),
           this.fetchRainfallSummary(),
           this.fetchSprayWindow(),
           this.fetchGrowthStage(),
@@ -777,6 +842,25 @@ export default {
         }
       } catch (err) {
         console.warn('Failed to fetch recommendations:', err)
+      }
+    },
+    async fetchWbiPrognosis() {
+      try {
+        const [perResponse, oidResponse] = await Promise.all([
+          axios.get('/api/v1/wbi/prognosis/latest?disease=peronospora').catch(() => null),
+          axios.get('/api/v1/wbi/prognosis/latest?disease=oidium').catch(() => null)
+        ])
+        
+        if (perResponse?.data) {
+          this.wbiPrognosis.peronospora = perResponse.data
+          console.log('Peronospora prognosis:', perResponse.data)
+        }
+        if (oidResponse?.data) {
+          this.wbiPrognosis.oidium = oidResponse.data
+          console.log('Oidium prognosis:', oidResponse.data)
+        }
+      } catch (err) {
+        console.warn('Failed to fetch WBI prognosis:', err)
       }
     },
     async fetchRainfallSummary() {
@@ -901,6 +985,30 @@ export default {
         })
       } catch (e) {
         console.warn('Error parsing date:', isoString, e)
+        return 'Invalid date'
+      }
+    },
+    formatWbiDate(dateArray) {
+      if (!dateArray) return 'N/A'
+      try {
+        // Handle array format [year, month, day]
+        if (Array.isArray(dateArray)) {
+          const [year, month, day] = dateArray
+          const date = new Date(year, month - 1, day)
+          
+          if (isNaN(date.getTime())) {
+            return 'Invalid date'
+          }
+          
+          return date.toLocaleDateString(undefined, { 
+            month: 'short', 
+            day: 'numeric', 
+            year: 'numeric'
+          })
+        }
+        return 'Invalid date'
+      } catch (e) {
+        console.warn('Error parsing WBI date:', dateArray, e)
         return 'Invalid date'
       }
     },
@@ -1253,6 +1361,121 @@ h2 {
   font-style: italic;
   color: #666;
   margin-top: 1rem;
+}
+
+/* WBI Prognosis Section */
+.wbi-section {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
+  border-top: 3px solid #667eea;
+}
+
+.wbi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.wbi-card {
+  border: 2px solid #667eea;
+  border-radius: 8px;
+  padding: 1.5rem;
+  background: white;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.wbi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+.wbi-prognosis-card {
+  position: relative;
+}
+
+.wbi-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #eee;
+}
+
+.wbi-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.wbi-badge {
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.wbi-badge.wbi-risk-infection_risk {
+  background: #ff4444;
+  color: white;
+}
+
+.wbi-badge.wbi-risk-high_infection_risk {
+  background: #ff9800;
+  color: white;
+}
+
+.wbi-badge.wbi-risk-low_infection_risk {
+  background: #ffc107;
+  color: #333;
+}
+
+.wbi-badge.wbi-risk-no_infection_risk {
+  background: #4caf50;
+  color: white;
+}
+
+.wbi-score-bar {
+  height: 10px;
+  background: #e0e0e0;
+  border-radius: 5px;
+  overflow: hidden;
+  margin-bottom: 1.2rem;
+}
+
+.wbi-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #4caf50 0%, #ffc107 50%, #ff4444 100%);
+  transition: width 0.3s ease;
+}
+
+.wbi-details p {
+  margin: 0.6rem 0;
+  font-size: 0.95rem;
+  color: #555;
+}
+
+.wbi-score {
+  font-weight: 600;
+  color: #333;
+}
+
+.wbi-incubation {
+  color: #667eea;
+}
+
+.wbi-accuracy {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.wbi-forecast-date {
+  color: #999;
+  font-size: 0.85rem;
+  margin-top: 0.8rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid #eee;
 }
 
 .recommendations-list {
