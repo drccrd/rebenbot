@@ -1,8 +1,6 @@
 package com.rebenbot.init;
 
-import com.rebenbot.model.FungalDisease;
 import com.rebenbot.model.Vineyard;
-import com.rebenbot.repository.FungalDiseaseRepository;
 import com.rebenbot.repository.VineyardRepository;
 import com.rebenbot.repository.WeatherDataRepository;
 import com.rebenbot.service.WeatherService;
@@ -14,24 +12,22 @@ import java.time.LocalDate;
 
 /**
  * Initialize database with demo data on application startup.
- * Initializes vineyards, diseases, and fetches current weather data via WeatherService (Meteoblue API).
+ * Initializes vineyards and fetches weather data via WeatherService (Meteoblue API).
+ * Fungal disease data is managed by Flyway migrations (V1__initial_schema.sql).
  */
 @Component
 @Slf4j
 public class DataInitializer implements CommandLineRunner {
 
     private final VineyardRepository vineyardRepository;
-    private final FungalDiseaseRepository diseaseRepository;
     private final WeatherService weatherService;
     private final WeatherDataRepository weatherDataRepository;
 
     public DataInitializer(
             VineyardRepository vineyardRepository,
-            FungalDiseaseRepository diseaseRepository,
             WeatherService weatherService,
             WeatherDataRepository weatherDataRepository) {
         this.vineyardRepository = vineyardRepository;
-        this.diseaseRepository = diseaseRepository;
         this.weatherService = weatherService;
         this.weatherDataRepository = weatherDataRepository;
     }
@@ -39,7 +35,6 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) {
         initializeVineyards();
-        initializeDiseases();
         seedHistoricalWeatherData();
         fetchInitialWeatherData();
     }
@@ -57,36 +52,6 @@ public class DataInitializer implements CommandLineRunner {
 
             vineyardRepository.save(vineyard);
             log.info("Initialized vineyard data");
-        }
-    }
-
-    private void initializeDiseases() {
-        if (diseaseRepository.count() == 0) {
-            // Peronospora (Downy Mildew)
-            FungalDisease peronospora = FungalDisease.builder()
-                    .commonName("Peronospora")
-                    .scientificName("Plasmopara viticola")
-                    .germanName("Falscher Mehltau")
-                    .tempMinC(10.0)
-                    .tempMaxC(25.0)
-                    .humidityMinPercent(85.0)
-                    .description("Downy mildew - primary threat in humid conditions. Requires 10+ hours leaf wetness at 10-25°C")
-                    .build();
-
-            // Oidium (Powdery Mildew)
-            FungalDisease oidium = FungalDisease.builder()
-                    .commonName("Oidium")
-                    .scientificName("Erysiphe necator")
-                    .germanName("Echter Mehltau")
-                    .tempMinC(15.0)
-                    .tempMaxC(27.0)
-                    .humidityMinPercent(40.0)
-                    .description("Powdery mildew - thrives in warm, dry conditions. Optimal at 20-25°C, can develop at 40% humidity")
-                    .build();
-
-            diseaseRepository.save(peronospora);
-            diseaseRepository.save(oidium);
-            log.info("Initialized fungal disease data");
         }
     }
 
