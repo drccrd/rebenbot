@@ -275,6 +275,48 @@ INSERT INTO frac_code (code, chemical_class, description, resistance_risk_level)
     'Proquinazid — locally systemic Oidium activity. '
     'Medium resistance risk; max 2 applications per season. PHI 42 days.',
     'MEDIUM'
+),
+(
+    'M3', 'Dithiocarbamates',
+    'Mancozeb, maneb, metiram, propineb — multi-site contact fungicide. '
+    'LOW resistance risk. Commonly combined with systemic fungicides for Peronospora.',
+    'LOW'
+),
+(
+    '9', 'Anilinopyrimidines',
+    'Cyprodinil, pyrimethanil — inhibit amino acid synthesis. '
+    'Primarily Oidium activity, some Botrytis. MEDIUM resistance risk; max 3 applications per season.',
+    'MEDIUM'
+),
+(
+    '12', 'Phenylpyrroles',
+    'Fludioxonil — osmotic signal transduction inhibitor. '
+    'Broad spectrum including Botrytis. LOW resistance risk.',
+    'LOW'
+),
+(
+    '13', 'Quinoline fungicides',
+    'Quinoxyfen — signal transduction inhibitor. '
+    'Exclusively Oidium activity (preventive only). MEDIUM resistance risk.',
+    'MEDIUM'
+),
+(
+    '33', 'Phosphonates',
+    'Fosetyl-aluminium, phosphorous acid — stimulate plant defence and inhibit Peronospora. '
+    'LOW resistance risk; often used as tank-mix partner.',
+    'LOW'
+),
+(
+    '45', 'Aza-naphthalenes',
+    'Ametoctradin — inhibits electron transport at complex III (Qi site). '
+    'Systemic Peronospora and Botrytis activity. MEDIUM resistance risk.',
+    'MEDIUM'
+),
+(
+    '49', 'Oxysterol-binding protein inhibitors (OSBPI)',
+    'Oxathiapiprolin — inhibits oxysterol-binding proteins; unique mode of action against oomycetes. '
+    'Highly systemic Peronospora activity. MEDIUM resistance risk; use only in mixtures.',
+    'MEDIUM'
 );
 
 -- -----------------------------------------------------------------------

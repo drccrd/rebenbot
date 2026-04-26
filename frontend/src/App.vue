@@ -544,6 +544,8 @@
                   <div class="product-name">{{ fungicide.name }} <span class="product-substance">({{ fungicide.activeSubstance }})</span></div>
                   <div class="product-details">
                     <span class="detail-item"><strong>Concentration:</strong> {{ fungicide.concentration }}%</span>
+                    <span v-if="fungicide.baseDosageMlHa" class="detail-item"><strong>Dosage:</strong> {{ fungicide.baseDosageMlHa }} mL/ha</span>
+                    <span v-if="fungicide.phiDays" class="detail-item"><strong>PHI:</strong> {{ fungicide.phiDays }} days</span>
                     <span v-if="fungicide.manufacturer" class="detail-item"><strong>Manufacturer:</strong> {{ fungicide.manufacturer }}</span>
                     <span v-if="fungicide.fracCode" class="detail-item">
                       <strong>FRAC:</strong>

@@ -461,6 +461,8 @@ public class FungicideManagementController {
         map.put("fracDescription", p.getFracCode() != null ? p.getFracCode().getDescription() : "");
         map.put("resistanceRisk", p.getFracCode() != null && p.getFracCode().getResistanceRiskLevel() != null
                 ? p.getFracCode().getResistanceRiskLevel().name() : "");
+        map.put("baseDosageMlHa", p.getBaseDosageMlHa());
+        map.put("phiDays", p.getPhiDays());
         // German product authorisation (source: BVL PSM-API)
         map.put("bvlRegistrationNumber", p.getBvlRegistrationNumber());
         map.put("bvlApprovedInGermany", p.getBvlApprovedInGermany());

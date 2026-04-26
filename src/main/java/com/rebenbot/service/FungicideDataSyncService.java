@@ -25,10 +25,12 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -47,6 +49,125 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class FungicideDataSyncService {
+
+    // --- static FRAC code lookup map (active substance name → FRAC code) ---------
+    //
+    // Maps lower-cased BVL wirkstoffname_en values to the corresponding FRAC code.
+    // Sources: FRAC Code List 2024, EPPO, BVL PSM-DB. Update annually if new active
+    // substances are approved for German viticulture.
+
+    private static final Map<String, String> ACTIVE_SUBSTANCE_TO_FRAC;
+
+    static {
+        Map<String, String> m = new HashMap<>();
+        // M1 – Copper-based fungicides (contact, multi-site)
+        m.put("copper hydroxide", "M1");
+        m.put("copper oxychloride", "M1");
+        m.put("copper sulphate", "M1");
+        m.put("copper sulfate", "M1");
+        m.put("tribasic copper sulphate", "M1");
+        m.put("copper octanoate", "M1");
+        m.put("cuprous oxide", "M1");
+        m.put("copper oxide", "M1");
+        m.put("copper sulphate, tribasic", "M1");
+        // M2 – Sulphur
+        m.put("sulphur", "M2");
+        m.put("sulfur", "M2");
+        // M3 – Dithiocarbamates
+        m.put("mancozeb", "M3");
+        m.put("maneb", "M3");
+        m.put("metiram", "M3");
+        m.put("propineb", "M3");
+        m.put("thiram", "M3");
+        m.put("zineb", "M3");
+        m.put("ziram", "M3");
+        // M4 – Phthalimides
+        m.put("folpet", "M4");
+        m.put("captan", "M4");
+        // FRAC 3 – DMI (triazoles / imidazoles, sterol biosynthesis inhibitors)
+        m.put("tebuconazole", "3");
+        m.put("myclobutanil", "3");
+        m.put("penconazole", "3");
+        m.put("hexaconazole", "3");
+        m.put("triadimenol", "3");
+        m.put("metconazole", "3");
+        m.put("difenoconazole", "3");
+        m.put("prothioconazole", "3");
+        m.put("flutriafol", "3");
+        m.put("bitertanol", "3");
+        m.put("bromuconazole", "3");
+        m.put("tetraconazole", "3");
+        m.put("ipconazole", "3");
+        m.put("triflumizole", "3");
+        m.put("imazalil", "3");
+        m.put("fenarimol", "3");
+        m.put("triadimefon", "3");
+        // FRAC 4 – Phenylamides (oomycetes — Peronospora)
+        m.put("metalaxyl", "4");
+        m.put("metalaxyl-m", "4");
+        m.put("mefenoxam", "4");
+        m.put("benalaxyl", "4");
+        m.put("benalaxyl-m", "4");
+        // FRAC 5 – Amines / morpholines
+        m.put("spiroxamine", "5");
+        m.put("tridemorph", "5");
+        m.put("fenpropimorph", "5");
+        m.put("fenpropidin", "5");
+        // FRAC 6 – Morpholines (sterol esterification)
+        m.put("bupirimate", "6");
+        // FRAC 7 – SDHI (succinate dehydrogenase inhibitors)
+        m.put("boscalid", "7");
+        m.put("fluxapyroxad", "7");
+        m.put("fluopyram", "7");
+        m.put("isopyrazam", "7");
+        m.put("penthiopyrad", "7");
+        m.put("sedaxane", "7");
+        m.put("bixafen", "7");
+        m.put("pydiflumetofen", "7");
+        m.put("isoflucypram", "7");
+        // FRAC 9 – Anilinopyrimidines
+        m.put("cyprodinil", "9");
+        m.put("pyrimethanil", "9");
+        m.put("mepanipyrim", "9");
+        // FRAC 11 – QoI (strobilurins)
+        m.put("azoxystrobin", "11");
+        m.put("trifloxystrobin", "11");
+        m.put("kresoxim-methyl", "11");
+        m.put("picoxystrobin", "11");
+        m.put("pyraclostrobin", "11");
+        m.put("dimoxystrobin", "11");
+        m.put("fenaminstrobin", "11");
+        m.put("orysastrobin", "11");
+        // FRAC 12 – Phenylpyrroles
+        m.put("fludioxonil", "12");
+        // FRAC 13 – Quinoline fungicides
+        m.put("quinoxyfen", "13");
+        // FRAC 33 – Phosphonates / phosphite
+        m.put("fosetyl", "33");
+        m.put("fosetyl-aluminium", "33");
+        m.put("fosetyl-al", "33");
+        m.put("phosphorous acid", "33");
+        m.put("potassium phosphonate", "33");
+        m.put("disodium phosphonate", "33");
+        // FRAC 40 – CAA (carboxylic acid amides — oomycetes)
+        m.put("mandipropamid", "40");
+        m.put("iprovalicarb", "40");
+        m.put("benthiavalicarb", "40");
+        m.put("dimethomorph", "40");
+        m.put("valifenalate", "40");
+        m.put("pyrimorph", "40");
+        m.put("flumorph", "40");
+        // FRAC 45 – Aza-naphthalenes
+        m.put("ametoctradin", "45");
+        // FRAC U7 – Cymoxanil (unknown target)
+        m.put("cymoxanil", "U7");
+        // FRAC U13 – Fenpyrazamine / Quinazolinones
+        m.put("fenpyrazamine", "U13");
+        m.put("proquinazid", "U13");
+        // FRAC 49 – OSBPI (oxysterol-binding protein inhibitors)
+        m.put("oxathiapiprolin", "49");
+        ACTIVE_SUBSTANCE_TO_FRAC = Collections.unmodifiableMap(m);
+    }
 
     // --- configuration -----------------------------------------------------------
 
@@ -119,18 +240,85 @@ public class FungicideDataSyncService {
         }
         log.info("Starting BVL PSM-API sync from {}", bvlApiBaseUrl);
 
+        // Build active substance name cache (wirknr → wirkstoffname_en) for FRAC resolution.
+        // Loaded once here and passed to both the import step and the update loop.
+        Map<String, String> wirknrToName = buildWirkstoffNameCache();
+
         // Step 1: import any VITVI products from BVL not yet in the local DB
-        int imported = importVitviProductsFromBvl();
+        int imported = importVitviProductsFromBvl(wirknrToName);
 
         // Step 2: verify / update products not already synced today (avoids re-processing fresh imports)
         List<FungicideProduct> products = fungicideProductRepository.findAll();
         int updated = 0, notFound = 0, errors = 0;
 
+        FracCode unknownFracSingleton = getOrCreateUnknownFracCode();
+
         for (FungicideProduct product : products) {
-            // Skip products that were just imported/verified in Step 1
-            if (LocalDate.now().equals(product.getBvlLastVerified())) {
+            boolean hasKnownFrac = product.getFracCode() != null
+                    && !"UNKNOWN".equals(product.getFracCode().getCode());
+            boolean verifiedToday = LocalDate.now().equals(product.getBvlLastVerified());
+            boolean hasDosage = product.getBaseDosageMlHa() != null;
+
+            // Skip products that are fully up-to-date (known FRAC + dosage + verified today)
+            if (hasKnownFrac && hasDosage && verifiedToday) {
                 continue;
             }
+
+            // Fast path: already verified today but missing FRAC or dosage — resolve without
+            // a full BVL mittel lookup.
+            if (verifiedToday && product.getBvlRegistrationNumber() != null) {
+                try {
+                    boolean changed = false;
+
+                    if (!hasKnownFrac) {
+                        List<String> wirknrList = fetchWirkstoffGehalteForKennr(product.getBvlRegistrationNumber());
+                        FracAndSubstance fas = resolveFracAndSubstance(wirknrList, wirknrToName, unknownFracSingleton);
+                        if (!"UNKNOWN".equals(fas.fracCode().getCode())) {
+                            product.setFracCode(fas.fracCode());
+                            if (!fas.activeSubstance().isBlank()) {
+                                product.setActiveSubstance(fas.activeSubstance());
+                            }
+                            log.debug("FRAC resolved for '{}' → {}", product.getName(), fas.fracCode().getCode());
+                            changed = true;
+                        }
+                    }
+
+                    if (!hasDosage) {
+                        List<BvlKultur> kulturList = fetchKulturListForKennr(product.getBvlRegistrationNumber());
+                        Set<String> vitviAwgIds = kulturList.stream()
+                                .filter(k -> "VITVI".equals(k.kultur()) && !"J".equals(k.ausgenommen()))
+                                .map(BvlKultur::awgId)
+                                .collect(Collectors.toSet());
+                        if (!vitviAwgIds.isEmpty()) {
+                            List<BvlAwg> awgList = fetchAwgListForKennr(product.getBvlRegistrationNumber());
+                            awgList.stream()
+                                    .filter(a -> vitviAwgIds.contains(a.awgId())
+                                            && a.mittelaufwand() != null && a.mittelaufwand() > 0)
+                                    .mapToDouble(BvlAwg::mittelaufwand)
+                                    .min()
+                                    .ifPresent(lHa -> {
+                                        product.setBaseDosageMlHa(lHa * 1000);
+                                    });
+                            if (product.getBaseDosageMlHa() != null) {
+                                log.debug("Dosage resolved for '{}' → {} mL/ha",
+                                        product.getName(), product.getBaseDosageMlHa());
+                                changed = true;
+                            }
+                        }
+                    }
+
+                    if (changed) {
+                        fungicideProductRepository.save(product);
+                        updated++;
+                    }
+                } catch (Exception e) {
+                    log.warn("Fast-path resolution failed for '{}'", product.getName(), e);
+                    errors++;
+                }
+                continue;
+            }
+
+            // Full BVL update path (product not verified today)
             try {
                 BvlMittel match = null;
 
@@ -150,6 +338,17 @@ public class FungicideDataSyncService {
                             match.zulEnde() == null || !match.zulEnde().isBefore(LocalDate.now()));
                     product.setBvlApprovalExpiry(match.zulEnde());
                     product.setBvlLastVerified(LocalDate.now());
+
+                    // Resolve FRAC code when still UNKNOWN
+                    if (!hasKnownFrac) {
+                        List<String> wirknrList = fetchWirkstoffGehalteForKennr(match.kennr());
+                        FracAndSubstance fas = resolveFracAndSubstance(wirknrList, wirknrToName, unknownFracSingleton);
+                        product.setFracCode(fas.fracCode());
+                        if (!fas.activeSubstance().isBlank()) {
+                            product.setActiveSubstance(fas.activeSubstance());
+                        }
+                    }
+
                     syncTargetDiseasesForProduct(product, match.kennr()); // may update phiDays
                     fungicideProductRepository.save(product);
                     log.debug("BVL matched '{}' → kennr={}, zul_ende={}", product.getName(),
@@ -178,12 +377,12 @@ public class FungicideDataSyncService {
     /**
      * Queries BVL for all products with a grapevine (VITVI) approved use and creates
      * a local {@link FungicideProduct} row for every one not already in the database.
-     * Active substance is seeded from the product name (BVL does not expose wirkstoff
-     * in the public API); it can be corrected manually afterwards.
+     * Active substance and FRAC code are resolved via BVL {@code /wirkstoff_gehalt/}.
      *
+     * @param wirknrToName  pre-loaded cache of wirknr → wirkstoffname_en
      * @return number of new products created
      */
-    private int importVitviProductsFromBvl() {
+    private int importVitviProductsFromBvl(Map<String, String> wirknrToName) {
         Set<String> vitviKennr = fetchAllVitviKennrFromBvl();
         if (vitviKennr.isEmpty()) {
             log.info("BVL import: no VITVI kennr found — skipping import");
@@ -219,14 +418,20 @@ public class FungicideDataSyncService {
                     continue;
                 }
 
+                // Resolve active substance(s) and FRAC code via wirkstoff_gehalt
+                List<String> wirknrList = fetchWirkstoffGehalteForKennr(kennr);
+                FracAndSubstance fas = resolveFracAndSubstance(wirknrList, wirknrToName, unknownFrac);
+                String activeSubstance = fas.activeSubstance().isBlank()
+                        ? mittel.mittelname() : fas.activeSubstance();
+
                 FungicideProduct product = FungicideProduct.builder()
                         .name(mittel.mittelname())
-                        .activeSubstance(mittel.mittelname()) // BVL API does not expose active substance
+                        .activeSubstance(activeSubstance)
                         .bvlRegistrationNumber(kennr)
                         .bvlApprovedInGermany(true)
                         .bvlApprovalExpiry(mittel.zulEnde())
                         .bvlLastVerified(LocalDate.now())
-                        .fracCode(unknownFrac)
+                        .fracCode(fas.fracCode())
                         .build();
 
                 FungicideProduct saved = fungicideProductRepository.save(product);
@@ -408,13 +613,23 @@ public class FungicideDataSyncService {
                 });
             }
 
-            // Update PHI from minimum wartezeit across all VITVI awgs
+            // Update PHI and dosage from VITVI AWG records
             List<BvlWartezeit> wartezeitList = fetchWartezeitForKennrAndKultur(kennr, "VITVI");
             wartezeitList.stream()
                     .filter(w -> w.phi() != null && w.phi() >= 0)
                     .mapToInt(BvlWartezeit::phi)
                     .min()
                     .ifPresent(product::setPhiDays);
+
+            // Derive baseDosageMlHa from BVL AWG mittelaufwand for VITVI uses.
+            // BVL stores dosage in L/ha; convert to mL/ha (* 1000) and take the minimum
+            // across VITVI AWG records as the conservative labeled rate.
+            List<BvlAwg> awgList = fetchAwgListForKennr(kennr);
+            awgList.stream()
+                    .filter(a -> vitviAwgIds.contains(a.awgId()) && a.mittelaufwand() != null && a.mittelaufwand() > 0)
+                    .mapToDouble(BvlAwg::mittelaufwand)
+                    .min()
+                    .ifPresent(lHa -> product.setBaseDosageMlHa(lHa * 1000));
 
             // Replace existing disease links for this product
             fungicideTargetDiseaseRepository.deleteAll(
@@ -615,6 +830,128 @@ public class FungicideDataSyncService {
         }
     }
 
+    // --- FRAC code resolution from BVL wirkstoff_gehalt -------------------------
+
+    /**
+     * Fetches all active substances (wirknr) for a product from BVL
+     * {@code /wirkstoff_gehalt/?kennr={kennr}}.
+     *
+     * @return distinct list of wirknr values, or empty list on error
+     */
+    @SuppressWarnings("unchecked")
+    private List<String> fetchWirkstoffGehalteForKennr(String kennr) {
+        try {
+            String uri = bvlApiBaseUrl + "/wirkstoff_gehalt/?kennr="
+                    + URLEncoder.encode(kennr, StandardCharsets.UTF_8) + "&limit=50";
+            Map<String, Object> response = bvlWebClient.get().uri(URI.create(uri)).retrieve()
+                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                    .timeout(Duration.ofSeconds(bvlTimeoutSeconds)).block();
+            if (response == null) return List.of();
+            List<Map<String, Object>> items = (List<Map<String, Object>>) response.get("items");
+            if (items == null) return List.of();
+            return items.stream()
+                    .map(i -> (String) i.get("wirknr"))
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.debug("BVL /wirkstoff_gehalt/ fetch failed for kennr '{}': {}", kennr, e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * Builds a cache of wirknr → wirkstoffname_en by paginating through
+     * BVL {@code /wirkstoff/}. Called once per sync run.
+     *
+     * @return map of wirknr to English substance name; empty on failure
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, String> buildWirkstoffNameCache() {
+        Map<String, String> cache = new HashMap<>();
+        int offset = 0;
+        final int limit = 500;
+        try {
+            while (true) {
+                String uri = bvlApiBaseUrl + "/wirkstoff/?limit=" + limit + "&offset=" + offset;
+                Map<String, Object> response = bvlWebClient.get().uri(URI.create(uri)).retrieve()
+                        .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                        .timeout(Duration.ofSeconds(bvlTimeoutSeconds)).block();
+                if (response == null) break;
+                List<Map<String, Object>> items = (List<Map<String, Object>>) response.get("items");
+                if (items == null || items.isEmpty()) break;
+                for (Map<String, Object> item : items) {
+                    String wirknr = (String) item.get("wirknr");
+                    String nameEn = (String) item.get("wirkstoffname_en");
+                    if (wirknr != null && nameEn != null && !nameEn.isBlank()) {
+                        cache.put(wirknr, nameEn);
+                    }
+                }
+                if (items.size() < limit) break;
+                offset += limit;
+            }
+            log.info("BVL wirkstoff cache: loaded {} active substances", cache.size());
+        } catch (Exception e) {
+            log.warn("Failed to build BVL wirkstoff name cache: {}", e.getMessage());
+        }
+        return cache;
+    }
+
+    /**
+     * Resolves the FRAC code and active substance names for a list of wirknr values.
+     * Systemic (non-M) FRAC codes are preferred over multi-site contact codes (M*)
+     * because they are the resistance-management concern in combination products.
+     *
+     * @param wirknrList    wirknr values from BVL wirkstoff_gehalt
+     * @param wirknrToName  cache of wirknr → wirkstoffname_en built at sync start
+     * @param fallback      UNKNOWN FracCode entity to use when no match found
+     * @return resolved FRAC code + comma-separated active substance names
+     */
+    private FracAndSubstance resolveFracAndSubstance(List<String> wirknrList,
+                                                      Map<String, String> wirknrToName,
+                                                      FracCode fallback) {
+        if (wirknrList.isEmpty()) {
+            return new FracAndSubstance("", fallback);
+        }
+
+        List<String> substanceNames = new ArrayList<>();
+        String systemicFrac = null;
+        String contactFrac  = null;
+
+        for (String wirknr : wirknrList) {
+            String nameEn = wirknrToName.getOrDefault(wirknr, "");
+            if (!nameEn.isBlank()) {
+                substanceNames.add(nameEn);
+            }
+            String fracStr = lookupFracCode(nameEn);
+            if (fracStr != null) {
+                if (fracStr.startsWith("M")) {
+                    if (contactFrac == null) contactFrac = fracStr;
+                } else {
+                    if (systemicFrac == null) systemicFrac = fracStr;
+                }
+            }
+        }
+
+        String activeSubstance = String.join(", ", substanceNames);
+        // Prefer systemic FRAC code; fall back to contact (M*), then UNKNOWN
+        String fracCodeStr = systemicFrac != null ? systemicFrac : contactFrac;
+        if (fracCodeStr == null) {
+            return new FracAndSubstance(activeSubstance, fallback);
+        }
+        FracCode fracCode = fracCodeRepository.findByCode(fracCodeStr).orElse(fallback);
+        return new FracAndSubstance(activeSubstance, fracCode);
+    }
+
+    /**
+     * Looks up the FRAC code string for an active substance name (case-insensitive,
+     * exact match after trimming). Returns {@code null} if not found.
+     */
+    private static String lookupFracCode(String substanceName) {
+        if (substanceName == null || substanceName.isBlank()) return null;
+        return ACTIVE_SUBSTANCE_TO_FRAC.get(substanceName.toLowerCase(Locale.ROOT).trim());
+    }
+
     // --- inner records ------------------------------------------------------------
 
     record BvlMittel(String kennr, String mittelname, LocalDate zulEnde) {}
@@ -626,4 +963,6 @@ public class FungicideDataSyncService {
     record BvlSchadorg(String awgId, String schadorg, String ausgenommen) {}
 
     record BvlWartezeit(String awgId, Integer phi) {}
+
+    record FracAndSubstance(String activeSubstance, FracCode fracCode) {}
 }
