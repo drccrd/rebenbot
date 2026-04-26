@@ -4,6 +4,7 @@ import com.rebenbot.model.FungicideTargetDisease;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface FungicideTargetDiseaseRepository extends JpaRepository<FungicideTargetDisease, Long> {
@@ -11,4 +12,6 @@ public interface FungicideTargetDiseaseRepository extends JpaRepository<Fungicid
     List<FungicideTargetDisease> findByDiseaseId(Long diseaseId);
     
     List<FungicideTargetDisease> findByProductId(Long productId);
+
+    Optional<FungicideTargetDisease> findByProductIdAndDiseaseId(Long productId, Long diseaseId);
 }

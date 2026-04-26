@@ -33,9 +33,6 @@ public class FungicideTargetDisease {
     @JoinColumn(name = "disease_id", nullable = false)
     private FungalDisease disease;
 
-    @Column(name = "recommended_dosage_ml_per_100l", nullable = false)
-    private Double recommendedDosageMlPer100l;
-
     @Column(name = "efficacy_rating")
     private Integer efficacyRating;  // 0-5 scale, where 5 is most effective
 

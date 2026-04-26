@@ -31,6 +31,9 @@ public class FungalDisease {
     @Column(name = "german_name")
     private String germanName;
 
+    @Column(name = "eppo_code")
+    private String eppoCode;
+
     @Column(name = "temp_min_c")
     private Double tempMinC;  // Minimum temperature for infection
     

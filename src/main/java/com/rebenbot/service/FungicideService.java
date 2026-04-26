@@ -4,6 +4,8 @@ import com.rebenbot.model.*;
 import com.rebenbot.repository.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -17,20 +19,17 @@ public class FungicideService {
 
     private final FungicideProductRepository fungicideProductRepository;
     private final FracCodeRepository fracCodeRepository;
-    private final FungicideApprovalRepository fungicideApprovalRepository;
     private final FungicideTargetDiseaseRepository fungicideTargetDiseaseRepository;
     private final RotationStrategyRepository rotationStrategyRepository;
     private final FungalDiseaseRepository fungalDiseaseRepository;
 
     public FungicideService(FungicideProductRepository fungicideProductRepository,
                            FracCodeRepository fracCodeRepository,
-                           FungicideApprovalRepository fungicideApprovalRepository,
                            FungicideTargetDiseaseRepository fungicideTargetDiseaseRepository,
                            RotationStrategyRepository rotationStrategyRepository,
                            FungalDiseaseRepository fungalDiseaseRepository) {
         this.fungicideProductRepository = fungicideProductRepository;
         this.fracCodeRepository = fracCodeRepository;
-        this.fungicideApprovalRepository = fungicideApprovalRepository;
         this.fungicideTargetDiseaseRepository = fungicideTargetDiseaseRepository;
         this.rotationStrategyRepository = rotationStrategyRepository;
         this.fungalDiseaseRepository = fungalDiseaseRepository;
@@ -51,20 +50,6 @@ public class FungicideService {
      */
     public List<FungicideProduct> getFungicidesByFracCode(String fracCode) {
         return fungicideProductRepository.findByFracCode(fracCode);
-    }
-
-    /**
-     * Get active approvals for a region
-     */
-    public List<FungicideApproval> getActiveApprovalsForRegion(String region) {
-        return fungicideApprovalRepository.findActiveApprovalsByRegion(region);
-    }
-
-    /**
-     * Get approval info for a specific product in a region
-     */
-    public Optional<FungicideApproval> getApprovalForProductInRegion(Long productId, String region) {
-        return fungicideApprovalRepository.findByProductIdAndRegion(productId, region);
     }
 
     /**
@@ -118,25 +103,6 @@ public class FungicideService {
     }
 
     /**
-     * Get all fungicides for a disease with their approval info for a region
-     */
-    public List<Map<String, Object>> getFungicidesWithApprovalsForDiseaseAndRegion(Long diseaseId, String region) {
-        List<FungicideProduct> fungicides = getFungicidesForDisease(diseaseId);
-        List<Map<String, Object>> result = new ArrayList<>();
-
-        for (FungicideProduct fungicide : fungicides) {
-            Optional<FungicideApproval> approval = getApprovalForProductInRegion(fungicide.getId(), region);
-            if (approval.isPresent() && approval.get().getApprovalStatus() == FungicideApproval.ApprovalStatus.ACTIVE) {
-                Map<String, Object> item = new HashMap<>();
-                item.put("product", fungicide);
-                item.put("approval", approval.get());
-                result.add(item);
-            }
-        }
-        return result;
-    }
-
-    /**
      * Get all FRAC codes
      */
     public List<FracCode> getAllFracCodes() {
@@ -155,5 +121,87 @@ public class FungicideService {
      */
     public List<FungicideTargetDisease> getAllFungicideTargetDiseases() {
         return fungicideTargetDiseaseRepository.findAll();
+    }
+
+    // -----------------------------------------------------------------------
+    // CRUD — Fungicide Products
+    // -----------------------------------------------------------------------
+
+    @Transactional
+    public FungicideProduct saveProduct(FungicideProduct product) {
+        return fungicideProductRepository.save(product);
+    }
+
+    @Transactional
+    public Optional<FungicideProduct> updateProduct(Long id, String name, String activeSubstance,
+                                                    Double concentrationPercent, String manufacturerName,
+                                                    Double baseDosageMlHa, Integer phiDays, String fracCode) {
+        Optional<FungicideProduct> existing = fungicideProductRepository.findById(id);
+        if (existing.isEmpty()) {
+            return Optional.empty();
+        }
+        FungicideProduct p = existing.get();
+        if (name != null)                  p.setName(name);
+        if (activeSubstance != null)       p.setActiveSubstance(activeSubstance);
+        if (concentrationPercent != null)  p.setConcentrationPercent(concentrationPercent);
+        if (manufacturerName != null)      p.setManufacturerName(manufacturerName);
+        if (baseDosageMlHa != null)        p.setBaseDosageMlHa(baseDosageMlHa);
+        if (phiDays != null)               p.setPhiDays(phiDays);
+        if (fracCode != null) {
+            FracCode fc = fracCodeRepository.findByCode(fracCode)
+                .orElseThrow(() -> new IllegalArgumentException("Unknown FRAC code: " + fracCode));
+            p.setFracCode(fc);
+        }
+        return Optional.of(fungicideProductRepository.save(p));
+    }
+
+    @Transactional
+    public boolean deleteProduct(Long id) {
+        if (!fungicideProductRepository.existsById(id)) {
+            return false;
+        }
+        fungicideProductRepository.deleteById(id);
+        return true;
+    }
+
+    // -----------------------------------------------------------------------
+    // CRUD — Fungicide Approvals
+    // -----------------------------------------------------------------------
+
+    /**
+     * Products with a BVL authorisation that expires within the given number of days.
+     * Used for renewal warning display in the UI.
+     */
+    public List<FungicideProduct> getProductsWithExpiringBvlApproval(int daysAhead) {
+        LocalDate cutoff = LocalDate.now().plusDays(daysAhead);
+        return fungicideProductRepository.findProductsWithExpiringBvlApproval(cutoff);
+    }
+
+    // -----------------------------------------------------------------------
+    // CRUD — Rotation Strategies
+    // -----------------------------------------------------------------------
+
+    @Transactional
+    public RotationStrategy saveRotationStrategy(Long diseaseId, String recommendedFracCodes,
+                                                  Integer minDays, String description) {
+        FungalDisease disease = fungalDiseaseRepository.findById(diseaseId)
+            .orElseThrow(() -> new IllegalArgumentException("Unknown disease ID: " + diseaseId));
+
+        RotationStrategy strategy = rotationStrategyRepository.findByDiseaseId(diseaseId)
+            .orElse(RotationStrategy.builder().disease(disease).build());
+
+        strategy.setRecommendedFracCodes(recommendedFracCodes);
+        if (minDays != null)       strategy.setMinDaysBeforeRepeatingClass(minDays);
+        if (description != null)   strategy.setDescription(description);
+        return rotationStrategyRepository.save(strategy);
+    }
+
+    @Transactional
+    public boolean deleteRotationStrategy(Long id) {
+        if (!rotationStrategyRepository.existsById(id)) {
+            return false;
+        }
+        rotationStrategyRepository.deleteById(id);
+        return true;
     }
 }

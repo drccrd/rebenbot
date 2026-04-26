@@ -237,8 +237,10 @@ public class WeatherService {
                         .leafWetnessIndex(wetness)
                         .build();
 
-                WeatherData saved = weatherDataRepository.save(data);
-                weatherDataList.add(saved);
+                if (!weatherDataRepository.existsByVineyardIdAndRecordedAt(vineyard.getId(), dateTime)) {
+                    WeatherData saved = weatherDataRepository.save(data);
+                    weatherDataList.add(saved);
+                }
 
             } catch (Exception e) {
                 log.warn("Error parsing weather record at index {}: {}", i, e.getMessage());
@@ -354,8 +356,10 @@ public class WeatherService {
                 double windValueKmh = windSpeed.has(i) && !windSpeed.get(i).isNull() ? windSpeed.get(i).asDouble() : 0.0;
 
                 WeatherData data = buildWeatherData(vineyard, recordTime, tempValue, humidityValue, precValue, windValueKmh, 0.0);
-                weatherDataList.add(data);
-                weatherDataRepository.save(data);
+                if (!weatherDataRepository.existsByVineyardIdAndRecordedAt(vineyard.getId(), recordTime)) {
+                    weatherDataList.add(data);
+                    weatherDataRepository.save(data);
+                }
 
             } catch (Exception e) {
                 log.warn("Error parsing Open-Meteo weather record at index {}: {}", i, e.getMessage());

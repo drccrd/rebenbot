@@ -2,6 +2,7 @@ package com.rebenbot.controller;
 
 import com.rebenbot.model.*;
 import com.rebenbot.repository.*;
+import com.rebenbot.service.FungicideDataSyncService;
 import com.rebenbot.service.FungicideService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,23 +25,23 @@ public class FungicideManagementController {
     private final FungicideService fungicideService;
     private final FracCodeRepository fracCodeRepository;
     private final FungicideProductRepository fungicideProductRepository;
-    private final FungicideApprovalRepository fungicideApprovalRepository;
     private final RotationStrategyRepository rotationStrategyRepository;
     private final FungalDiseaseRepository fungalDiseaseRepository;
+    private final FungicideDataSyncService fungicideDataSyncService;
 
     public FungicideManagementController(
             FungicideService fungicideService,
             FracCodeRepository fracCodeRepository,
             FungicideProductRepository fungicideProductRepository,
-            FungicideApprovalRepository fungicideApprovalRepository,
             RotationStrategyRepository rotationStrategyRepository,
-            FungalDiseaseRepository fungalDiseaseRepository) {
+            FungalDiseaseRepository fungalDiseaseRepository,
+            FungicideDataSyncService fungicideDataSyncService) {
         this.fungicideService = fungicideService;
         this.fracCodeRepository = fracCodeRepository;
         this.fungicideProductRepository = fungicideProductRepository;
-        this.fungicideApprovalRepository = fungicideApprovalRepository;
         this.rotationStrategyRepository = rotationStrategyRepository;
         this.fungalDiseaseRepository = fungalDiseaseRepository;
+        this.fungicideDataSyncService = fungicideDataSyncService;
     }
 
     /**
@@ -110,13 +111,6 @@ public class FungicideManagementController {
 
         List<FungicideProduct> fungicides = fungicideService.getFungicidesForDisease(diseaseId);
 
-        if (fungicides.isEmpty()) {
-            return ResponseEntity.status(404).body(Map.of(
-                    "status", "NOT_FOUND",
-                    "message", "No fungicides found for disease ID: " + diseaseId
-            ));
-        }
-
         List<Map<String, Object>> products = fungicides.stream()
                 .map(this::mapFungicideProduct)
                 .collect(Collectors.toList());
@@ -126,48 +120,6 @@ public class FungicideManagementController {
         response.put("diseaseId", diseaseId);
         response.put("count", products.size());
         response.put("fungicides", products);
-
-        return ResponseEntity.ok(response);
-    }
-
-    /**
-     * Get approval information for a fungicide product
-     */
-    @GetMapping("/{productId}/approvals")
-    public ResponseEntity<Map<String, Object>> getFungicideApprovals(@PathVariable Long productId) {
-        log.debug("Approvals requested for fungicide product ID: {}", productId);
-
-        Optional<FungicideProduct> product = fungicideProductRepository.findById(productId);
-        if (product.isEmpty()) {
-            return ResponseEntity.status(404).body(Map.of(
-                    "status", "NOT_FOUND",
-                    "message", "Fungicide product not found: " + productId
-            ));
-        }
-
-        List<FungicideApproval> approvals = fungicideApprovalRepository.findByProductId(productId);
-
-        List<Map<String, Object>> approvalList = approvals.stream()
-                .map(a -> {
-                    Map<String, Object> map = new LinkedHashMap<>();
-                    map.put("id", a.getId());
-                    map.put("region", a.getRegion() != null ? a.getRegion() : "");
-                    map.put("approvalValidFrom", a.getApprovalValidFrom() != null ? a.getApprovalValidFrom().toString() : "");
-                    map.put("approvalValidUntil", a.getApprovalValidUntil() != null ? a.getApprovalValidUntil().toString() : "");
-                    map.put("phiDaysBeforeHarvest", a.getPhiDaysBeforeHarvest() != null ? a.getPhiDaysBeforeHarvest() : 0);
-                    map.put("maxDosageMlPer100l", a.getMaxDosageMlPer100l() != null ? a.getMaxDosageMlPer100l() : 0);
-                    map.put("approvalStatus", a.getApprovalStatus() != null ? a.getApprovalStatus() : "");
-                    map.put("isActive", isApprovalActive(a));
-                    return map;
-                })
-                .collect(Collectors.toList());
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("status", "SUCCESS");
-        response.put("productId", productId);
-        response.put("productName", product.get().getName());
-        response.put("approvalCount", approvalList.size());
-        response.put("approvals", approvalList);
 
         return ResponseEntity.ok(response);
     }
@@ -221,10 +173,14 @@ public class FungicideManagementController {
 
         Optional<RotationStrategy> strategy = rotationStrategyRepository.findByDiseaseId(diseaseId);
         if (strategy.isEmpty()) {
-            return ResponseEntity.status(404).body(Map.of(
-                    "status", "NOT_FOUND",
-                    "message", "No rotation strategy found for disease: " + disease.get().getCommonName()
-            ));
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "SUCCESS");
+            response.put("diseaseId", diseaseId);
+            response.put("diseaseName", disease.get().getCommonName());
+            response.put("minDaysBetweenRotation", 14);
+            response.put("rotationSequence", List.of());
+            response.put("message", "No rotation strategy configured yet. Run BVL sync and set strategy via POST /rotation-strategy.");
+            return ResponseEntity.ok(response);
         }
 
         RotationStrategy rs = strategy.get();
@@ -254,7 +210,245 @@ public class FungicideManagementController {
         return ResponseEntity.ok(response);
     }
 
-    // Helper methods
+    // -----------------------------------------------------------------------
+    // Expiry warnings
+    // -----------------------------------------------------------------------
+
+    /**
+     * Returns BVL-approved products whose authorisation expires within the next N days (default 90).
+     * Use this to prompt renewal follow-up before the season starts.
+     */
+    @GetMapping("/approvals/expiring")
+    public ResponseEntity<Map<String, Object>> getExpiringApprovals(
+            @RequestParam(defaultValue = "90") int daysAhead) {
+        log.debug("Expiring BVL approvals requested, days ahead: {}", daysAhead);
+
+        List<FungicideProduct> expiring = fungicideService.getProductsWithExpiringBvlApproval(daysAhead);
+
+        List<Map<String, Object>> items = expiring.stream()
+                .map(p -> {
+                    Map<String, Object> map = new LinkedHashMap<>();
+                    map.put("productId", p.getId());
+                    map.put("productName", p.getName());
+                    map.put("activeSubstance", p.getActiveSubstance());
+                    map.put("bvlApprovalExpiry", p.getBvlApprovalExpiry() != null ? p.getBvlApprovalExpiry().toString() : "");
+                    map.put("phiDays", p.getPhiDays() != null ? p.getPhiDays() : 0);
+                    map.put("bvlRegistrationNumber", p.getBvlRegistrationNumber() != null ? p.getBvlRegistrationNumber() : "");
+                    return map;
+                })
+                .collect(Collectors.toList());
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("status", "SUCCESS");
+        response.put("daysAhead", daysAhead);
+        response.put("count", items.size());
+        response.put("message", items.isEmpty()
+                ? "No BVL authorisations expiring within " + daysAhead + " days."
+                : items.size() + " product(s) with BVL authorisation expiring within " + daysAhead + " days. Please verify renewal status.");
+        response.put("expiringApprovals", items);
+
+        return ResponseEntity.ok(response);
+    }
+
+    // -----------------------------------------------------------------------
+    // CRUD — Fungicide Products
+    // -----------------------------------------------------------------------
+
+    /**
+     * Create a new fungicide product.
+     * Body fields: name, activeSubstance, concentrationPercent, manufacturerName,
+     *              baseDosageMlHa, phiDays, fracCode (code string, e.g. "M1")
+     */
+    @PostMapping("/products")
+    public ResponseEntity<Map<String, Object>> createProduct(@RequestBody Map<String, Object> body) {
+        try {
+            String fracCodeStr = (String) body.get("fracCode");
+            FracCode fracCode = fracCodeRepository.findByCode(fracCodeStr)
+                    .orElse(null);
+            if (fracCode == null) {
+                return ResponseEntity.badRequest().body(Map.of("status", "ERROR",
+                        "message", "Unknown FRAC code: " + fracCodeStr));
+            }
+            FungicideProduct product = FungicideProduct.builder()
+                    .name((String) body.get("name"))
+                    .activeSubstance((String) body.get("activeSubstance"))
+                    .concentrationPercent(toDouble(body.get("concentrationPercent")))
+                    .manufacturerName((String) body.get("manufacturerName"))
+                    .baseDosageMlHa(toDouble(body.get("baseDosageMlHa")))
+                    .phiDays(toInt(body.get("phiDays")))
+                    .fracCode(fracCode)
+                    .build();
+            FungicideProduct saved = fungicideService.saveProduct(product);
+            return ResponseEntity.ok(Map.of("status", "CREATED", "id", saved.getId(), "name", saved.getName()));
+        } catch (Exception e) {
+            log.error("Error creating product", e);
+            return ResponseEntity.badRequest().body(Map.of("status", "ERROR", "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * Update an existing fungicide product (partial update — only provided fields change).
+     */
+    @PutMapping("/products/{id}")
+    public ResponseEntity<Map<String, Object>> updateProduct(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> body) {
+        try {
+            Optional<FungicideProduct> updated = fungicideService.updateProduct(
+                    id,
+                    (String) body.get("name"),
+                    (String) body.get("activeSubstance"),
+                    toDouble(body.get("concentrationPercent")),
+                    (String) body.get("manufacturerName"),
+                    toDouble(body.get("baseDosageMlHa")),
+                    toInt(body.get("phiDays")),
+                    (String) body.get("fracCode"));
+            if (updated.isEmpty()) {
+                return ResponseEntity.status(404).body(Map.of("status", "NOT_FOUND",
+                        "message", "Product not found: " + id));
+            }
+            return ResponseEntity.ok(Map.of("status", "UPDATED", "id", updated.get().getId()));
+        } catch (Exception e) {
+            log.error("Error updating product {}", id, e);
+            return ResponseEntity.badRequest().body(Map.of("status", "ERROR", "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * Delete a fungicide product (cascades to approvals and target-disease records).
+     */
+    @DeleteMapping("/products/{id}")
+    public ResponseEntity<Map<String, Object>> deleteProduct(@PathVariable Long id) {
+        boolean deleted = fungicideService.deleteProduct(id);
+        if (!deleted) {
+            return ResponseEntity.status(404).body(Map.of("status", "NOT_FOUND",
+                    "message", "Product not found: " + id));
+        }
+        return ResponseEntity.ok(Map.of("status", "DELETED", "id", id));
+    }
+
+    // -----------------------------------------------------------------------
+    // CRUD — Fungicide Approvals
+    // -----------------------------------------------------------------------
+
+    // Approval CRUD removed — approvals are now managed via BVL PSM-API sync.
+    // Use POST /api/v1/admin/sync/bvl-api to synchronise approval status.
+    // See GET /approvals/expiring for upcoming expiry warnings.
+
+    /**
+     * Returns live BVL approved-use data for a product.
+     * Proxies GET /awg/?kennr={kennr} and enriches with pest organism data and grape PHI.
+     * Requires the product to have a BVL registration number (run sync first).
+     */
+    @GetMapping("/{productId}/approvals")
+    public ResponseEntity<Map<String, Object>> getProductApprovals(@PathVariable Long productId) {
+        Optional<FungicideProduct> productOpt = fungicideProductRepository.findById(productId);
+        if (productOpt.isEmpty()) {
+            return ResponseEntity.status(404).body(Map.of("status", "NOT_FOUND",
+                    "message", "Product not found: " + productId));
+        }
+        FungicideProduct product = productOpt.get();
+        String kennr = product.getBvlRegistrationNumber();
+        if (kennr == null || kennr.isBlank()) {
+            return ResponseEntity.status(404).body(Map.of("status", "NO_BVL_NUMBER",
+                    "message", "Product '" + product.getName() + "' has no BVL registration number. Run BVL sync first."));
+        }
+        List<Map<String, Object>> approvedUses = fungicideDataSyncService.fetchApprovedUsesForKennr(kennr);
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("status", "SUCCESS");
+        response.put("productId", productId);
+        response.put("productName", product.getName());
+        response.put("bvlRegistrationNumber", kennr);
+        response.put("bvlApprovalExpiry", product.getBvlApprovalExpiry() != null ? product.getBvlApprovalExpiry().toString() : null);
+        response.put("source", "BVL PSM-API (live)");
+        response.put("count", approvedUses.size());
+        response.put("approvedUses", approvedUses);
+        return ResponseEntity.ok(response);
+    }
+
+    // -----------------------------------------------------------------------
+    // CRUD — Rotation Strategies
+    // -----------------------------------------------------------------------
+
+    /**
+     * Create or update the rotation strategy for a disease.
+     * Body fields: diseaseId, recommendedFracCodes (comma-separated, e.g. "M1,M4,40,U7"),
+     *              minDaysBeforeRepeatingClass, description
+     */
+    @PostMapping("/rotation-strategy")
+    public ResponseEntity<Map<String, Object>> saveRotationStrategy(@RequestBody Map<String, Object> body) {
+        try {
+            Long diseaseId = toLong(body.get("diseaseId"));
+            String fracCodes = (String) body.get("recommendedFracCodes");
+            RotationStrategy saved = fungicideService.saveRotationStrategy(
+                    diseaseId, fracCodes,
+                    toInt(body.get("minDaysBeforeRepeatingClass")),
+                    (String) body.get("description"));
+            return ResponseEntity.ok(Map.of("status", "SAVED", "id", saved.getId(),
+                    "diseaseId", diseaseId, "recommendedFracCodes", fracCodes));
+        } catch (Exception e) {
+            log.error("Error saving rotation strategy", e);
+            return ResponseEntity.badRequest().body(Map.of("status", "ERROR", "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * Delete a rotation strategy by ID.
+     */
+    @DeleteMapping("/rotation-strategy/{id}")
+    public ResponseEntity<Map<String, Object>> deleteRotationStrategy(@PathVariable Long id) {
+        boolean deleted = fungicideService.deleteRotationStrategy(id);
+        if (!deleted) {
+            return ResponseEntity.status(404).body(Map.of("status", "NOT_FOUND",
+                    "message", "Rotation strategy not found: " + id));
+        }
+        return ResponseEntity.ok(Map.of("status", "DELETED", "id", id));
+    }
+
+    // -----------------------------------------------------------------------
+    // Rotation validation
+    // -----------------------------------------------------------------------
+
+    /**
+     * Validate whether a proposed spray sequence respects resistance management rules.
+     * Body fields: diseaseId, fungicideIds (list of product IDs in proposed application order)
+     * Returns: valid (boolean), warnings (list of strings)
+     */
+    @PostMapping("/validate-rotation")
+    public ResponseEntity<Map<String, Object>> validateRotation(@RequestBody Map<String, Object> body) {
+        try {
+            Long diseaseId = toLong(body.get("diseaseId"));
+            @SuppressWarnings("unchecked")
+            List<Integer> rawIds = (List<Integer>) body.get("fungicideIds");
+            List<Long> fungicideIds = rawIds.stream().map(i -> (long) i).collect(Collectors.toList());
+
+            boolean valid = fungicideService.validateRotationSequence(diseaseId, fungicideIds);
+
+            // Build FRAC code sequence for diagnostics
+            List<String> fracSequence = fungicideIds.stream()
+                    .map(fid -> fungicideProductRepository.findById(fid)
+                            .map(p -> p.getFracCode() != null ? p.getFracCode().getCode() : "?")
+                            .orElse("unknown"))
+                    .collect(Collectors.toList());
+
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("status", "SUCCESS");
+            response.put("diseaseId", diseaseId);
+            response.put("valid", valid);
+            response.put("fracSequence", fracSequence);
+            response.put("message", valid
+                    ? "Rotation sequence uses recommended FRAC codes — good resistance management."
+                    : "Rotation sequence contains FRAC codes outside the recommended rotation. Risk of resistance development.");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error validating rotation", e);
+            return ResponseEntity.badRequest().body(Map.of("status", "ERROR", "message", e.getMessage()));
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Helpers
+    // -----------------------------------------------------------------------
 
     private Map<String, Object> mapFungicideProduct(FungicideProduct p) {
         Map<String, Object> map = new LinkedHashMap<>();
@@ -265,17 +459,34 @@ public class FungicideManagementController {
         map.put("manufacturer", p.getManufacturerName());
         map.put("fracCode", p.getFracCode() != null ? p.getFracCode().getCode() : "");
         map.put("fracDescription", p.getFracCode() != null ? p.getFracCode().getDescription() : "");
+        map.put("resistanceRisk", p.getFracCode() != null && p.getFracCode().getResistanceRiskLevel() != null
+                ? p.getFracCode().getResistanceRiskLevel().name() : "");
+        // German product authorisation (source: BVL PSM-API)
+        map.put("bvlRegistrationNumber", p.getBvlRegistrationNumber());
+        map.put("bvlApprovedInGermany", p.getBvlApprovedInGermany());
+        map.put("bvlApprovalExpiry", p.getBvlApprovalExpiry() != null ? p.getBvlApprovalExpiry().toString() : null);
+        map.put("bvlLastVerified", p.getBvlLastVerified() != null ? p.getBvlLastVerified().toString() : null);
         return map;
     }
 
-    private boolean isApprovalActive(FungicideApproval approval) {
-        if ("EXPIRED".equals(approval.getApprovalStatus())) {
-            return false;
-        }
-        LocalDate today = LocalDate.now();
-        if (approval.getApprovalValidUntil() != null && approval.getApprovalValidUntil().isBefore(today)) {
-            return false;
-        }
-        return "ACTIVE".equals(approval.getApprovalStatus());
+    private Double toDouble(Object v) {
+        if (v == null) return null;
+        if (v instanceof Double d) return d;
+        if (v instanceof Number n) return n.doubleValue();
+        return Double.parseDouble(v.toString());
+    }
+
+    private Integer toInt(Object v) {
+        if (v == null) return null;
+        if (v instanceof Integer i) return i;
+        if (v instanceof Number n) return n.intValue();
+        return Integer.parseInt(v.toString());
+    }
+
+    private Long toLong(Object v) {
+        if (v == null) return null;
+        if (v instanceof Long l) return l;
+        if (v instanceof Number n) return n.longValue();
+        return Long.parseLong(v.toString());
     }
 }

@@ -1,6 +1,10 @@
 spring:
   application:
     name: rebenbot
+  task:
+    scheduling:
+      pool:
+        size: 2
   jpa:
     hibernate:
       ddl-auto: validate
@@ -29,6 +33,15 @@ server:
 meteoblue:
   api:
     key: ${METEOBLUE_API_KEY:demo}
+
+# BVL PSM-API sync configuration (https://psm-api.bvl.bund.de/)
+sync:
+  bvl:
+    url: https://psm-api.bvl.bund.de/ords/psm/api-v1
+    # Monthly sync: 04:00 on the 1st of each month (BVL publishes updates monthly)
+    cron: "0 0 4 1 * *"
+    enabled: true
+    timeout-seconds: 60
 
 logging:
   level:

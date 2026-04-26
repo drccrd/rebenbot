@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -44,6 +45,25 @@ public class FungicideProduct {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "frac_code_id", nullable = false)
     private FracCode fracCode;
+
+    /** BVL (Bundesamt für Verbraucherschutz und Lebensmittelsicherheit) registration number. */
+    @Column(name = "bvl_registration_number")
+    private String bvlRegistrationNumber;
+
+    /**
+     * Whether this product has a confirmed German (BVL) product-level authorization.
+     * This is distinct from EU active substance approval.
+     */
+    @Column(name = "bvl_approved_in_germany")
+    private Boolean bvlApprovedInGermany;
+
+    /** Date when BVL German authorization was last verified from BVL register data. */
+    @Column(name = "bvl_last_verified")
+    private LocalDate bvlLastVerified;
+
+    /** Expiry date of the BVL product authorisation (Zulassungsende), from BVL PSM-API. */
+    @Column(name = "bvl_approval_expiry")
+    private LocalDate bvlApprovalExpiry;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

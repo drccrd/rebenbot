@@ -1,45 +1,55 @@
 package com.rebenbot.service;
 
+import com.rebenbot.model.FungalDisease;
 import com.rebenbot.model.FungicideProduct;
+import com.rebenbot.model.FungicideTargetDisease;
 import com.rebenbot.model.InfectionRisk;
+import com.rebenbot.repository.FungalDiseaseRepository;
 import com.rebenbot.repository.FungicideProductRepository;
+import com.rebenbot.repository.FungicideTargetDiseaseRepository;
 import com.rebenbot.repository.InfectionRiskRepository;
 import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
 
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Recommends optimal fungicides based on disease type, risk level, and weather conditions.
- * Considers approval status, pre-harvest intervals (PHI), and application effectiveness.
+ * Recommends optimal fungicides based on disease type, risk level, and PHI.
+ * Reads product and approval data from the database, so recommendations
+ * automatically reflect the latest BVL approval status.
  */
 @Service
 @Slf4j
 public class FungicideRecommendationService {
 
     private final FungicideProductRepository fungicideProductRepository;
+    private final FungicideTargetDiseaseRepository fungicideTargetDiseaseRepository;
+    private final FungalDiseaseRepository fungalDiseaseRepository;
     private final InfectionRiskRepository infectionRiskRepository;
 
     public FungicideRecommendationService(FungicideProductRepository fungicideProductRepository,
+                                         FungicideTargetDiseaseRepository fungicideTargetDiseaseRepository,
+                                         FungalDiseaseRepository fungalDiseaseRepository,
                                          InfectionRiskRepository infectionRiskRepository) {
         this.fungicideProductRepository = fungicideProductRepository;
+        this.fungicideTargetDiseaseRepository = fungicideTargetDiseaseRepository;
+        this.fungalDiseaseRepository = fungalDiseaseRepository;
         this.infectionRiskRepository = infectionRiskRepository;
     }
 
     /**
-     * Data class for fungicide recommendations with rationale
+     * Data class for fungicide recommendations with rationale.
      */
     public static class FungicideRecommendation {
         public final FungicideProduct fungicide;
-        public final double score;  // 0.0-1.0, higher = better match
+        public final double score;
         public final String rationale;
         public final int daysUntilHarvest;
-        public final boolean applicable;  // True if PHI allows application
-        public final String timing;  // When to spray (immediate, within 24h, etc.)
+        public final boolean applicable;
+        public final String timing;
 
-        public FungicideRecommendation(FungicideProduct fungicide, double score, String rationale, 
+        public FungicideRecommendation(FungicideProduct fungicide, double score, String rationale,
                                       int daysUntilHarvest, boolean applicable, String timing) {
             this.fungicide = fungicide;
             this.score = score;
@@ -56,6 +66,10 @@ public class FungicideRecommendationService {
             map.put("activeSubstance", fungicide.getActiveSubstance());
             map.put("manufacturerName", fungicide.getManufacturerName());
             map.put("concentrationPercent", fungicide.getConcentrationPercent());
+            map.put("fracCode", fungicide.getFracCode() != null ? fungicide.getFracCode().getCode() : "");
+            map.put("fracDescription", fungicide.getFracCode() != null ? fungicide.getFracCode().getDescription() : "");
+            map.put("resistanceRisk", fungicide.getFracCode() != null && fungicide.getFracCode().getResistanceRiskLevel() != null
+                    ? fungicide.getFracCode().getResistanceRiskLevel().name() : "");
             map.put("score", String.format("%.2f", score));
             map.put("rationale", rationale);
             map.put("daysUntilHarvest", daysUntilHarvest);
@@ -65,194 +79,143 @@ public class FungicideRecommendationService {
         }
     }
 
-    /**
-     * Get fungicide recommendations for a specific disease and risk level.
-     * Assumes harvest 60 days from now (generic for viticulture).
-     *
-     * @param diseaseCommonName e.g., "Peronospora" or "Oidium"
-     * @param riskScore 0.0-1.0
-     * @return List of fungicides ranked by suitability
-     */
     public List<FungicideRecommendation> recommendForDisease(String diseaseCommonName, double riskScore) {
-        return recommendForDisease(diseaseCommonName, riskScore, 60);  // 60 days to harvest
+        return recommendForDisease(diseaseCommonName, riskScore, 60);
     }
 
     /**
-     * Get fungicide recommendations with custom days to harvest.
-     *
-     * @param diseaseCommonName Disease common name
-     * @param riskScore Current risk score (0.0-1.0)
-     * @param daysUntilHarvest Days until harvest (affects PHI filtering)
-     * @return Sorted list of recommendations
+     * Recommend fungicides for a disease at a given risk level.
+     * Only returns products with an active German approval; expired approvals are filtered out.
      */
-    public List<FungicideRecommendation> recommendForDisease(String diseaseCommonName, 
+    public List<FungicideRecommendation> recommendForDisease(String diseaseCommonName,
                                                              double riskScore, int daysUntilHarvest) {
-        // NOTE: Schema changed from simple Fungicide to FungicideProduct + FungicideTargetDisease.
-        // This method needs refactoring to work with the new relationships.
-        // For now, return empty list. Use FungicideService or FungicideManagementController instead.
-        log.warn("FungicideRecommendationService.recommendForDisease() needs schema refactoring. Use FungicideManagementController instead.");
-        return Collections.emptyList();
+        FungalDisease disease = fungalDiseaseRepository.findByCommonName(diseaseCommonName);
+        if (disease == null) {
+            log.warn("Unknown disease: {}", diseaseCommonName);
+            return Collections.emptyList();
+        }
+
+        List<FungicideTargetDisease> targets = fungicideTargetDiseaseRepository.findByDiseaseId(disease.getId());
+        String timing = getSprayTiming(riskScore);
+
+        List<FungicideRecommendation> recommendations = new ArrayList<>();
+
+        for (FungicideTargetDisease target : targets) {
+            FungicideProduct product = target.getProduct();
+
+            // Check German BVL approval — skip products not confirmed by BVL
+            boolean approvalActive = Boolean.TRUE.equals(product.getBvlApprovedInGermany());
+            if (!approvalActive) {
+                log.debug("Skipping {} — BVL approval not confirmed", product.getName());
+                continue;
+            }
+
+            int phi = product.getPhiDays() != null ? product.getPhiDays() : 0;
+            boolean phiOk = daysUntilHarvest >= phi;
+
+            double score = scoreProduct(product, target, diseaseCommonName, riskScore, approvalActive, phiOk);
+            String rationale = buildRationale(product, target, diseaseCommonName, riskScore, phiOk, daysUntilHarvest, phi);
+
+            recommendations.add(new FungicideRecommendation(product, score, rationale, daysUntilHarvest, phiOk, timing));
+        }
+
+        recommendations.sort(Comparator.comparingDouble((FungicideRecommendation r) -> r.score).reversed());
+        return recommendations;
     }
 
-    /**
-     * Score a fungicide based on disease type, risk level, and applicability
-     */
-    private FungicideRecommendation scoreAndRecommend(FungicideProduct fungicide, String disease, 
-                                                      double riskScore, int daysUntilHarvest, 
-                                                      String timing, boolean isApprovalActive,
-                                                      int minDaysBeforeHarvest) {
-        // Check PHI applicability
-        boolean applicable = daysUntilHarvest >= minDaysBeforeHarvest;
+    private double scoreProduct(FungicideProduct f, FungicideTargetDisease target,
+                                String disease, double riskScore,
+                                boolean approvalActive, boolean phiOk) {
+        // Start from efficacy rating (0-5 → normalised 0-1)
+        double base = target.getEfficacyRating() != null ? target.getEfficacyRating() / 5.0 : 0.5;
 
-        // Base score: how well suited is this fungicide for current risk?
-        double baseScore = scoreByDisease(fungicide, disease, riskScore);
-        
-        if (!isApprovalActive) {
-            baseScore *= 0.7;  // Penalize expired approvals
+        // At high risk, boost systemic/curative products
+        if (riskScore >= 0.75 && isSystemic(f)) base = Math.min(1.0, base + 0.15);
+        else if (riskScore < 0.25) base = Math.min(1.0, base + 0.10); // preventive fine for low risk
+
+        // Penalise if PHI is violated
+        if (!phiOk) base *= 0.4;
+
+        // Penalise HIGH resistance risk at high-frequency use — nudge towards rotation
+        if (f.getFracCode() != null && f.getFracCode().getResistanceRiskLevel() != null) {
+            if (f.getFracCode().getResistanceRiskLevel().name().equals("HIGH") && riskScore < 0.5) {
+                base *= 0.85; // save high-risk products for when needed
+            }
         }
-        if (!applicable) {
-            baseScore *= 0.5;  // Penalize if PHI violated
-        }
 
-        String rationale = buildRationale(fungicide, disease, riskScore, applicable, daysUntilHarvest, minDaysBeforeHarvest);
-
-        return new FungicideRecommendation(
-                fungicide, 
-                baseScore, 
-                rationale, 
-                daysUntilHarvest, 
-                applicable, 
-                timing
-        );
+        return Math.min(1.0, base);
     }
 
-    /**
-     * Score fungicide based on disease-specific characteristics
-     */
-    private double scoreByDisease(FungicideProduct f, String disease, double riskScore) {
-        double score = 0.5;  // Base score
-
-        // Risk-level based scoring: higher risk = prefer systemic fungicides
-        if (riskScore >= 0.75) {  // CRITICAL
-            score = isSystemic(f) ? 0.95 : 0.80;
-        } else if (riskScore >= 0.50) {  // HIGH
-            score = isSystemic(f) ? 0.90 : 0.75;
-        } else if (riskScore >= 0.25) {  // MEDIUM
-            score = isSystemic(f) ? 0.85 : 0.70;
-        } else {  // LOW/NONE - preventive is acceptable
-            score = 0.70;
-        }
-
-        // Disease-specific adjustments
-        if ("Peronospora".equals(disease)) {
-            // Prefer contact + systemic combos for Peronospora
-            if ("Ridomil Gold Combi".equals(f.getName())) score += 0.05;
-            if ("Aliette WG".equals(f.getName())) score += 0.03;
-            // Copper is good for late season
-            if ("Cuproxat 50".equals(f.getName()) && riskScore < 0.5) score += 0.05;
-        } else if ("Oidium".equals(disease)) {
-            // For Oidium, sulfur is classic preventive, systemics for high risk
-            if ("Netzschwefel".equals(f.getName()) && riskScore < 0.5) score += 0.05;
-            if (isSystemic(f) && riskScore >= 0.5) score += 0.05;
-        }
-
-        return Math.min(1.0, score);  // Cap at 1.0
-    }
-
-    /**
-     * Determine spray urgency based on risk level
-     */
     private String getSprayTiming(double riskScore) {
-        if (riskScore >= 0.75) {
-            return "IMMEDIATE - Spray today";
-        } else if (riskScore >= 0.50) {
-            return "URGENT - Spray within 24 hours";
-        } else if (riskScore >= 0.25) {
-            return "PLANNED - Spray within 48-72 hours if conditions persist";
-        } else {
-            return "PREVENTIVE - Monitor conditions, spray only if risk increases";
-        }
+        if (riskScore >= 0.75) return "IMMEDIATE — Spray today";
+        if (riskScore >= 0.50) return "URGENT — Spray within 24 hours";
+        if (riskScore >= 0.25) return "PLANNED — Spray within 48–72 hours if conditions persist";
+        return "PREVENTIVE — Monitor conditions";
     }
 
-    /**
-     * Check if fungicide approval is currently valid
-     */
-    private boolean isApprovalActive(LocalDateTime now) {
-        return true;  // In future, check fungicide.approvalValidUntil
-    }
-
-    /**
-     * Determine if fungicide is systemic (transported within plant)
-     */
     private boolean isSystemic(FungicideProduct f) {
-        String substance = f.getActiveSubstance().toLowerCase();
-        // Systemic active substances
-        return substance.contains("mefenoxam") 
-                || substance.contains("fosetyl") 
-                || substance.contains("triadimefon")
-                || substance.contains("bupirimate")
-                || substance.contains("quinoxyfen");
+        if (f.getFracCode() == null) return false;
+        String code = f.getFracCode().getCode();
+        // Contact codes: M1, M2, M4 — everything else is systemic or locally systemic
+        return !code.startsWith("M");
     }
 
-    /**
-     * Build human-readable rationale for the recommendation
-     */
-    private String buildRationale(FungicideProduct f, String disease, double riskScore, 
-                                  boolean applicable, int daysUntilHarvest, int minDaysBeforeHarvest) {
+    private String buildRationale(FungicideProduct f, FungicideTargetDisease target,
+                                  String disease, double riskScore,
+                                  boolean phiOk, int daysUntilHarvest, int phi) {
         StringBuilder sb = new StringBuilder();
-        
-        sb.append("Recommended for ").append(disease);
-        
-        if (riskScore >= 0.75) {
-            sb.append(" at CRITICAL risk. ");
-            sb.append(isSystemic(f) ? "Systemic action provides rapid control." 
-                                    : "Contact protection for immediate application.");
-        } else if (riskScore >= 0.50) {
-            sb.append(" at HIGH risk. Effective preventive and curative action.");
-        } else if (riskScore >= 0.25) {
-            sb.append(" at MEDIUM risk. Good preventive protection.");
-        } else {
-            sb.append(" for preventive monitoring.");
+
+        sb.append(f.getName()).append(" (").append(f.getActiveSubstance()).append(")");
+        if (f.getFracCode() != null) {
+            sb.append(" FRAC ").append(f.getFracCode().getCode());
         }
-        
-        if (!applicable) {
-            sb.append(" ⚠ PHI ISSUE: Harvest in ").append(daysUntilHarvest).append(" days, ")
-                    .append("but ").append(f.getName()).append(" requires ").append(minDaysBeforeHarvest)
-                    .append(" days. DO NOT APPLY.");
-        } else if (daysUntilHarvest < minDaysBeforeHarvest + 7) {
-            sb.append(" PHI is tight: ").append(daysUntilHarvest).append(" days to harvest.");
+        sb.append(" — ");
+
+        if (riskScore >= 0.75)      sb.append("CRITICAL risk: curative action required. ");
+        else if (riskScore >= 0.50) sb.append("HIGH risk: preventive + curative. ");
+        else if (riskScore >= 0.25) sb.append("MEDIUM risk: good preventive protection. ");
+        else                        sb.append("LOW risk: preventive only. ");
+
+        if (target.getNotes() != null && !target.getNotes().isBlank()) {
+            sb.append(target.getNotes()).append(" ");
         }
-        
-        return sb.toString();
+
+        if (!phiOk) {
+            sb.append("⚠ PHI VIOLATION: harvest in ").append(daysUntilHarvest)
+              .append(" days but PHI is ").append(phi).append(" days — DO NOT APPLY.");
+        } else if (daysUntilHarvest < phi + 7) {
+            sb.append("PHI tight: ").append(daysUntilHarvest).append(" days to harvest.");
+        }
+
+        return sb.toString().trim();
     }
 
     /**
-     * Get all recommendations for the latest risk assessment
+     * Get all recommendations for the latest risk assessment.
      */
     public Map<String, Object> getLatestRecommendations(int daysUntilHarvest) {
         List<InfectionRisk> latestRisks = infectionRiskRepository.findLatestRisksByAllDiseases();
 
         if (latestRisks.isEmpty()) {
-            return Map.of("status", "NO_DATA", "message", "No risk assessments found. Run weather fetch and risk assessment first.");
+            return Map.of("status", "NO_DATA",
+                    "message", "No risk assessments found. Run weather fetch and risk assessment first.");
         }
 
-        Map<String, Object> result = new HashMap<>();
+        Map<String, Object> result = new LinkedHashMap<>();
         result.put("status", "SUCCESS");
         result.put("assessmentTime", latestRisks.get(0).getAssessedAt());
         result.put("daysUntilHarvest", daysUntilHarvest);
 
-        Map<String, List<Map<String, Object>>> recommendations = new HashMap<>();
-        
+        Map<String, List<Map<String, Object>>> recommendations = new LinkedHashMap<>();
         for (InfectionRisk risk : latestRisks) {
             String disease = risk.getDisease().getCommonName();
             List<FungicideRecommendation> recs = recommendForDisease(disease, risk.getRiskScore(), daysUntilHarvest);
-            recommendations.put(disease, 
+            recommendations.put(disease,
                     recs.stream().map(FungicideRecommendation::toMap).collect(Collectors.toList()));
         }
 
         result.put("recommendations", recommendations);
         result.put("totalRecommendations", recommendations.values().stream().mapToInt(List::size).sum());
-        
         return result;
     }
 }

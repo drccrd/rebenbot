@@ -12,6 +12,8 @@ import java.util.Optional;
 
 @Repository
 public interface WeatherDataRepository extends JpaRepository<WeatherData, Long> {
+
+    boolean existsByVineyardIdAndRecordedAt(Long vineyardId, LocalDateTime recordedAt);
     
     /**
      * Find current weather data: the most recent record at or before NOW.

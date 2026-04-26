@@ -425,15 +425,18 @@
       </section>
 
       <!-- Fungicide Recommendations -->
-      <section class="recommendations-section" v-if="recommendations.length > 0">
+      <section class="recommendations-section">
         <h2 @click="toggleSection('recommendations')" class="section-header" :class="{ collapsed: collapsedSections.recommendations }">
           <span class="section-toggle">{{ collapsedSections.recommendations ? '▶' : '▼' }}</span>
           Recommended Fungicides
         </h2>
         <div v-show="!collapsedSections.recommendations" class="recommendations-list">
-          <div class="fungicide-cards">
-            <div 
-              v-for="fung in recommendations" 
+          <div v-if="recommendations.length === 0" class="no-data-message">
+            No fungicide products loaded yet. Use the <strong>BVL Sync</strong> button in the Data Sync section below to import products from the German BVL register.
+          </div>
+          <div v-else class="fungicide-cards">
+            <div
+              v-for="fung in recommendations"
               :key="fung.id"
               class="fungicide-card"
             >
@@ -489,33 +492,72 @@
           💰 Fungicide Buying Guide for the Year
         </h2>
         <div v-show="!collapsedSections.buyingGuide">
+
+          <!-- Approval expiry warnings -->
+          <div v-if="expiringApprovals.length > 0" class="expiry-warning-banner">
+            <strong>⚠ Approval Renewal Alerts (next 120 days):</strong>
+            <ul class="expiry-list">
+              <li v-for="a in expiringApprovals" :key="a.productId">
+                <strong>{{ a.productName }}</strong> ({{ a.activeSubstance }}) —
+                BVL authorisation expires <strong>{{ a.bvlApprovalExpiry }}</strong>.
+                <span v-if="a.bvlRegistrationNumber" class="expiry-note">Kennzeichen: {{ a.bvlRegistrationNumber }}</span>
+              </li>
+            </ul>
+          </div>
+
           <div v-if="loadingFungicides" class="loading-message">
             Loading fungicide recommendations...
           </div>
           <div v-else-if="Object.keys(fungicidesByDisease).length === 0" class="no-data-message">
-            No fungicide data available. Please refresh the page.
+            No fungicide data available. Run BVL Sync in the Data Sync section to import products.
           </div>
           <div v-else class="buying-guide-container">
             <div v-for="disease in diseases" :key="disease.id" class="disease-buying-guide">
               <h3>{{ disease.icon || '🍇' }} For {{ disease.commonName }}</h3>
+
+              <!-- Rotation plan from DB -->
+              <div v-if="rotationPlans[disease.id]" class="rotation-plan-box">
+                <div class="rotation-plan-title">Resistance Management Rotation</div>
+                <div class="rotation-sequence">
+                  <span
+                    v-for="(step, idx) in rotationPlans[disease.id].rotationSequence"
+                    :key="idx"
+                    class="rotation-step"
+                  >
+                    <span class="frac-badge">FRAC {{ step.fracCode }}</span>
+                    <span class="rotation-products">{{ step.fungicides.map(f => f.name).join(' / ') }}</span>
+                    <span v-if="idx < rotationPlans[disease.id].rotationSequence.length - 1" class="rotation-arrow">→</span>
+                  </span>
+                </div>
+                <div class="rotation-rule">
+                  Min. {{ rotationPlans[disease.id].minDaysBetweenRotation }} days before repeating same FRAC class
+                </div>
+              </div>
+
               <div v-if="fungicidesByDisease[disease.id] && fungicidesByDisease[disease.id].length > 0">
-                <div 
-                  v-for="fungicide in fungicidesByDisease[disease.id]" 
-                  :key="fungicide.id" 
+                <div
+                  v-for="fungicide in fungicidesByDisease[disease.id]"
+                  :key="fungicide.id"
                   class="buying-recommendation"
+                  :class="{ 'resistance-high': fungicide.resistanceRisk === 'HIGH', 'resistance-medium': fungicide.resistanceRisk === 'MEDIUM' }"
                 >
-                  <div class="product-name">{{ fungicide.name }} ({{ fungicide.activeSubstance }})</div>
+                  <div class="product-name">{{ fungicide.name }} <span class="product-substance">({{ fungicide.activeSubstance }})</span></div>
                   <div class="product-details">
                     <span class="detail-item"><strong>Concentration:</strong> {{ fungicide.concentration }}%</span>
                     <span v-if="fungicide.manufacturer" class="detail-item"><strong>Manufacturer:</strong> {{ fungicide.manufacturer }}</span>
-                    <span v-if="fungicide.fracCode" class="detail-item"><strong>FRAC Code:</strong> {{ fungicide.fracCode }}</span>
-                    <span v-if="fungicide.fracDescription" class="detail-item"><strong>Mode of Action:</strong> {{ fungicide.fracDescription }}</span>
-                    <span class="detail-item"><strong>Recommendation:</strong> Rotate with different FRAC codes to prevent resistance</span>
+                    <span v-if="fungicide.fracCode" class="detail-item">
+                      <strong>FRAC:</strong>
+                      <span class="frac-badge-inline" :class="'resistance-' + (fungicide.resistanceRisk || 'LOW').toLowerCase()">
+                        {{ fungicide.fracCode }}
+                      </span>
+                      <span v-if="fungicide.resistanceRisk === 'HIGH'" class="resistance-warning"> HIGH RESISTANCE RISK</span>
+                    </span>
+                    <span v-if="fungicide.fracDescription" class="detail-item moa-item"><strong>Mode of Action:</strong> {{ fungicide.fracDescription }}</span>
                   </div>
                 </div>
               </div>
               <div v-else class="no-products-message">
-                No approved fungicides available for {{ disease.commonName }}
+                No approved fungicides linked to {{ disease.commonName }} yet. Run BVL Sync to populate.
               </div>
             </div>
           </div>
@@ -679,8 +721,9 @@
             <p class="calc-description">Based on vineyard size and growth stage (standard wine industry method)</p>
             <div class="calc-form">
               <div class="calc-input-group">
-                <label>Fungicide Base Dosage (ml/100L):</label>
-                <input type="number" v-model.number="calc.baseDosage" step="0.1" />
+                <label>Fungicide Base Dosage (mL/ha):</label>
+                <input type="number" v-model.number="calc.baseDosage" step="1" />
+                <small>Typical: 500–2000 mL/ha. Check product label.</small>
               </div>
               <div class="calc-input-group">
                 <label>Vineyard Size (ares):</label>
@@ -713,7 +756,7 @@
               </div>
               <div class="result-item highlight">
                 <span class="result-label">Fungicide Required:</span>
-                <span class="result-value">{{ (calc.baseDosage * (calc.vineyardSize * 4) / 100 * (calc.bbch >= 81 ? 0.8 : 1.0)).toFixed(2) }} ml</span>
+                <span class="result-value">{{ (calc.baseDosage * calc.vineyardSize / 100 * (calc.bbch >= 81 ? 0.8 : 1.0)).toFixed(2) }} mL</span>
               </div>
             </div>
           </div>
@@ -721,6 +764,59 @@
       </section>
 
       <!-- Fungicide Buying Guide -->
+
+      <!-- Admin: Data Sync -->
+      <section class="data-sync-section">
+        <h2 @click="toggleSection('dataSync')" class="section-header" :class="{ collapsed: collapsedSections.dataSync }">
+          <span class="section-toggle">{{ collapsedSections.dataSync ? '▶' : '▼' }}</span>
+          🔧 Data Sync (Admin)
+        </h2>
+        <div v-show="!collapsedSections.dataSync" class="data-sync-container">
+
+          <!-- BVL PSM-API sync -->
+          <div class="sync-card">
+            <div class="sync-card-header">
+              <span class="sync-icon">🇩🇪</span>
+              <div>
+                <strong>BVL PSM-Register (Germany)</strong>
+                <p class="sync-desc">Loads German product-level authorisations (Zulassungsnummern) from a BVL PSM-Register public API.</p>
+              </div>
+            </div>
+            <div class="sync-status" v-if="syncStatus">
+              <span class="sync-label">Last sync:</span>
+              <span>{{ syncStatus.lastBvlSync || 'never' }}</span>
+              <span v-if="syncStatus.lastBvlSyncResult && syncStatus.lastBvlSyncResult !== 'N/A'" class="sync-result" :class="{ 'sync-error': syncStatus.lastBvlSyncResult.startsWith('ERROR') }">
+                {{ syncStatus.lastBvlSyncResult }}
+              </span>
+            </div>
+            <p class="sync-desc" style="margin-bottom:10px">
+              Fetches German product authorisations directly from the
+              <a href="https://psm-api.bvl.bund.de/" target="_blank" rel="noopener">BVL PSM-API</a>. Runs automatically on the 1st of each month.
+            </p>
+            <button
+              @click="triggerBvlSync"
+              :disabled="syncingBvl"
+              class="btn-sync"
+            >
+              {{ syncingBvl ? 'Syncing…' : 'Sync Now' }}
+            </button>
+            <p v-if="bvlSyncMessage" class="sync-feedback" :class="{ 'sync-feedback-error': bvlSyncMessage.startsWith('Error') }">{{ bvlSyncMessage }}</p>
+          </div>
+
+          <!-- Product counts -->
+          <div v-if="syncStatus && syncStatus.products" class="sync-stats">
+            <div class="sync-stat">
+              <span class="stat-num">{{ syncStatus.products.total }}</span>
+              <span class="stat-label">Total products</span>
+            </div>
+            <div class="sync-stat">
+              <span class="stat-num">{{ syncStatus.products.withBvlVerification }}</span>
+              <span class="stat-label">BVL-verified</span>
+            </div>
+          </div>
+
+        </div>
+      </section>
 
       <!-- External Resources -->
       <section class="external-resources-section">
@@ -794,12 +890,14 @@ export default {
       diseases: [],
       fungicidesByDisease: {},
       loadingFungicides: false,
+      rotationPlans: {},
+      expiringApprovals: [],
       calcMethod: 'leafwall',
       calc: {
         concentration: 250,
         leafWallArea: 12,
         volumePerM2: 0.4,
-        baseDosage: 250,
+        baseDosage: 1000,
         vineyardSize: 10,
         bbch: 55
       },
@@ -824,6 +922,9 @@ export default {
       error: null,
       lastUpdate: 'Never',
       // Collapsible sections state
+      syncStatus: null,
+      syncingBvl: false,
+      bvlSyncMessage: null,
       collapsedSections: {
         weather: false,
         rainfallTiming: false,
@@ -836,6 +937,7 @@ export default {
         buyingGuide: false,
         spraySchedule: false,
         dosageCalculator: false,
+        dataSync: true,
         resources: false
       }
     }
@@ -864,6 +966,10 @@ export default {
         ])
         // After diseases are loaded, fetch fungicides for each disease
         await this.fetchFungicidesForAllDiseases()
+        await Promise.all([
+          this.fetchRotationPlans(),
+          this.fetchExpiringApprovals()
+        ])
         this.lastUpdate = new Date().toLocaleTimeString()
       } catch (err) {
         this.error = `Failed to load data: ${err.message}`
@@ -1071,6 +1177,32 @@ export default {
     },
     toggleSection(sectionName) {
       this.collapsedSections[sectionName] = !this.collapsedSections[sectionName]
+      if (sectionName === 'dataSync' && !this.collapsedSections.dataSync) {
+        this.fetchSyncStatus()
+      }
+    },
+    async fetchSyncStatus() {
+      try {
+        const response = await axios.get('/api/v1/admin/sync/status')
+        this.syncStatus = response.data
+      } catch (err) {
+        console.warn('Failed to fetch sync status:', err)
+      }
+    },
+    async triggerBvlSync() {
+      this.syncingBvl = true
+      this.bvlSyncMessage = null
+      try {
+        const response = await axios.post('/api/v1/admin/sync/bvl-api')
+        this.bvlSyncMessage = response.data.message
+        await this.fetchSyncStatus()
+        await this.fetchFungicides()
+        await this.fetchExpiringApprovals()
+      } catch (err) {
+        this.bvlSyncMessage = 'Error: ' + (err.response?.data?.message || err.message)
+      } finally {
+        this.syncingBvl = false
+      }
     },
     groupRecommendations() {
       const grouped = {}
@@ -1186,8 +1318,29 @@ export default {
         this.loadingFungicides = false
       }
     },
-    async fetchRecentSprays() {
+    async fetchRotationPlans() {
+      for (const disease of this.diseases) {
+        try {
+          const response = await axios.get(`/api/v1/fungicide-management/rotation-plan/${disease.id}`)
+          if (response.data && response.data.status === 'SUCCESS') {
+            this.rotationPlans[disease.id] = response.data
+          }
+        } catch (err) {
+          console.warn(`Failed to fetch rotation plan for disease ${disease.id}:`, err)
+        }
+      }
+    },
+    async fetchExpiringApprovals() {
       try {
+        const response = await axios.get('/api/v1/fungicide-management/approvals/expiring?daysAhead=120')
+        if (response.data && Array.isArray(response.data.expiringApprovals)) {
+          this.expiringApprovals = response.data.expiringApprovals
+        }
+      } catch (err) {
+        console.warn('Failed to fetch expiring approvals:', err)
+      }
+    },
+    async fetchRecentSprays() {      try {
         const response = await axios.get('/api/v1/vineyard-logs/recent-sprays/1')
         if (response.data && response.data.sprays) {
           this.recentSprays = response.data.sprays
@@ -2481,22 +2634,152 @@ h2 {
   border-radius: 4px;
 }
 
+.buying-recommendation.resistance-high {
+  border-left-color: #d32f2f;
+}
+
+.buying-recommendation.resistance-medium {
+  border-left-color: #f57c00;
+}
+
 .product-name {
   font-weight: 600;
   color: #1b5e20;
   margin-bottom: 8px;
 }
 
-.product-details {
-  display: grid;
-  gap: 6px;
+.product-substance {
+  font-weight: 400;
+  color: #555;
+  font-size: 13px;
 }
 
-.detail-item {
-  font-size: 13px;
-  color: #333;
-  line-height: 1.4;
+.frac-badge-inline {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  margin: 0 4px;
+  background: #e8f5e9;
+  color: #1b5e20;
 }
+
+.frac-badge-inline.resistance-high {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.frac-badge-inline.resistance-medium {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.resistance-warning {
+  color: #c62828;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.moa-item {
+  font-style: italic;
+  color: #555;
+}
+
+/* Rotation plan box */
+.rotation-plan-box {
+  background: #f3e5f5;
+  border: 1px solid #ce93d8;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.rotation-plan-title {
+  font-weight: 700;
+  color: #6a1b9a;
+  font-size: 13px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rotation-sequence {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.rotation-step {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.frac-badge {
+  background: #7b1fa2;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.rotation-products {
+  font-size: 12px;
+  color: #4a148c;
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rotation-arrow {
+  color: #9c27b0;
+  font-weight: 700;
+}
+
+.rotation-rule {
+  font-size: 12px;
+  color: #6a1b9a;
+  font-style: italic;
+}
+
+/* Approval expiry warning banner */
+.expiry-warning-banner {
+  background: #fff8e1;
+  border: 2px solid #ffb300;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  color: #5d4037;
+}
+
+.expiry-warning-banner strong {
+  color: #e65100;
+}
+
+.expiry-list {
+  margin: 8px 0 0 0;
+  padding-left: 20px;
+}
+
+.expiry-list li {
+  margin-bottom: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.expiry-note {
+  display: block;
+  font-size: 12px;
+  color: #795548;
+  font-style: italic;
+  margin-top: 2px;
+}
+
 
 .loading-message {
   text-align: center;
@@ -2795,6 +3078,144 @@ h2 {
 
 .section-header.collapsed .section-toggle {
   transform: rotate(-90deg);
+}
+
+/* Data Sync Section */
+.data-sync-section {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.data-sync-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.sync-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  background: #fafafa;
+}
+
+.sync-card-header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.sync-icon {
+  font-size: 1.8em;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.sync-card-header strong {
+  display: block;
+  font-size: 1rem;
+  margin-bottom: 4px;
+}
+
+.sync-desc {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #666;
+  line-height: 1.4;
+}
+
+.sync-status {
+  font-size: 0.82rem;
+  color: #555;
+  margin-bottom: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.sync-label {
+  font-weight: 600;
+}
+
+.sync-result {
+  background: #e8f5e9;
+  color: #2e7d32;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.82rem;
+}
+
+.sync-result.sync-error {
+  background: #fdecea;
+  color: #c62828;
+}
+
+.btn-sync {
+  background: #4a7c59;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.btn-sync:hover:not(:disabled) {
+  background: #3a6147;
+}
+
+.btn-sync:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.sync-feedback {
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+  color: #2e7d32;
+  background: #e8f5e9;
+  padding: 6px 10px;
+  border-radius: 4px;
+}
+
+.sync-feedback.sync-feedback-error {
+  color: #c62828;
+  background: #fdecea;
+}
+
+.sync-stats {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.sync-stat {
+  background: #f5f5f5;
+  border-radius: 8px;
+  padding: 10px 18px;
+  text-align: center;
+  flex: 1;
+  min-width: 80px;
+}
+
+.stat-num {
+  display: block;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #4a7c59;
+}
+
+.stat-label {
+  font-size: 0.78rem;
+  color: #666;
 }
 
 </style>
