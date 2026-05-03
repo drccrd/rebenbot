@@ -415,7 +415,8 @@ public class WbiPrognosisService {
                 parseAndStorePdf(pdfData, "oidium", OIDIUM_PDF_URL);
             }
         } catch (Exception e) {
-            log.error("Error refreshing {} prognosis: {}", disease, e.getMessage(), e);
+            log.warn("WBI prognosis refresh skipped for {} — external service unavailable, serving cached data. Reason: {}",
+                    disease, e.getMessage());
         }
     }
 

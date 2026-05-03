@@ -456,7 +456,7 @@ public class FungicideManagementController {
         map.put("name", p.getName());
         map.put("activeSubstance", p.getActiveSubstance());
         map.put("concentration", p.getConcentrationPercent());
-        map.put("manufacturer", p.getManufacturerName());
+        map.put("manufacturerName", p.getManufacturerName());
         map.put("fracCode", p.getFracCode() != null ? p.getFracCode().getCode() : "");
         map.put("fracDescription", p.getFracCode() != null ? p.getFracCode().getDescription() : "");
         map.put("resistanceRisk", p.getFracCode() != null && p.getFracCode().getResistanceRiskLevel() != null

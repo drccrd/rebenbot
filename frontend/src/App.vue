@@ -424,239 +424,310 @@
         </div>
       </section>
 
-      <!-- Fungicide Recommendations -->
-      <section class="recommendations-section">
-        <h2 @click="toggleSection('recommendations')" class="section-header" :class="{ collapsed: collapsedSections.recommendations }">
-          <span class="section-toggle">{{ collapsedSections.recommendations ? '▶' : '▼' }}</span>
-          Recommended Fungicides
+      <!-- Season Buying Decision (Phase 1) -->
+      <section class="season-planner-section">
+        <h2 @click="toggleSection('seasonPlanner')" class="section-header" :class="{ collapsed: collapsedSections.seasonPlanner }">
+          <span class="section-toggle">{{ collapsedSections.seasonPlanner ? '▶' : '▼' }}</span>
+          🛒 Season Buying Decision
         </h2>
-        <div v-show="!collapsedSections.recommendations" class="recommendations-list">
-          <div v-if="recommendations.length === 0" class="no-data-message">
-            No fungicide products loaded yet. Use the <strong>BVL Sync</strong> button in the Data Sync section below to import products from the German BVL register.
+        <div v-show="!collapsedSections.seasonPlanner">
+          <div v-if="Object.keys(fungicidesByDisease).length === 0" class="no-data-message">
+            Run <strong>BVL Sync</strong> in the Data Sync section to load approved products first.
           </div>
-          <div v-else class="fungicide-cards">
-            <div
-              v-for="fung in recommendations"
-              :key="fung.id"
-              class="fungicide-card"
-            >
-              <div class="fungicide-header">
-                <h4>{{ fung.name }}</h4>
+          <template v-else>
+            <div class="planner-config-strip">
+              <div class="config-item">
+                <label>Protect against:</label>
+                <div class="disease-pill-group">
+                  <button :class="['disease-pill', { active: planTargets.peronospora }]" @click="planTargets.peronospora = !planTargets.peronospora">🍂 Peronospora</button>
+                  <button :class="['disease-pill', { active: planTargets.oidium }]" @click="planTargets.oidium = !planTargets.oidium">🌬 Oidium</button>
+                </div>
               </div>
-              <p class="active-substance"><strong>Active Substance:</strong> {{ fung.activeSubstance }}</p>
-              <p class="dosage" v-if="fung.baseDosageMlHa"><strong>Base Dosage:</strong> {{ fung.baseDosageMlHa }} mL/ha</p>
-              <p class="phi" v-if="fung.phiDays"><strong>PHI:</strong> {{ fung.phiDays }} days</p>
-              <p class="manufacturer" v-if="fung.manufacturerName"><strong>Manufacturer:</strong> {{ fung.manufacturerName }}</p>
+              <div class="config-item">
+                <label>Sprays per disease this season: <strong>{{ planSprayCount }}</strong></label>
+                <input type="range" v-model.number="planSprayCount" min="4" max="12" step="1" class="spray-count-slider" />
+                <div class="slider-hint">4 = minimal &nbsp;·&nbsp; 7 = standard (BW recommendation) &nbsp;·&nbsp; 12 = intensive</div>
+              </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Resistance Prevention Guidelines -->
-      <section class="resistance-guidelines-section" v-if="recommendations.length > 0">
-        <h2 @click="toggleSection('resistanceGuidelines')" class="section-header" :class="{ collapsed: collapsedSections.resistanceGuidelines }">
-          <span class="section-toggle">{{ collapsedSections.resistanceGuidelines ? '▶' : '▼' }}</span>
-          🔒 Fungicide Resistance Prevention
-        </h2>
-        <div v-show="!collapsedSections.resistanceGuidelines" class="guidelines-container">
-          <div class="guideline-box">
-            <h3>Resistance Management Strategy</h3>
-            <ul class="guidelines-list">
-              <li><strong>Rotate active substances:</strong> Use different chemical classes in successive applications to prevent resistance buildup in fungal populations</li>
-              <li><strong>Limit repeats:</strong> Avoid applying the same active substance more than 2-3 times per season. Alternate with other modes of action</li>
-              <li><strong>Monitor efficacy:</strong> Track disease control effectiveness. Reduced efficacy may indicate emerging resistance</li>
-              <li><strong>Combination products:</strong> Use multi-active fungicides when available to reduce selection pressure on individual substances</li>
-              <li><strong>Preventive approach:</strong> Maintain preventive spray schedules rather than waiting for infections (helps prevent resistant population development)</li>
-              <li><strong>Regional compliance:</strong> Follow Baden-Württemberg and German fungicide guidelines for resistance management</li>
-            </ul>
-          </div>
-          <div class="guideline-box disease-specific">
-            <h3>Disease-Specific Resistance Info</h3>
-            <div class="disease-resistance">
-              <strong>Peronospora:</strong> Resistance to phosphonites and strobilurins is documented. Prioritize multi-active formulations.
+            <div v-if="expiringApprovals.length > 0" class="expiry-warning-banner">
+              <div class="expiry-banner-header" @click="collapsedSections.expiryBanner = !collapsedSections.expiryBanner">
+                <strong>⚠ BVL Approval Expiry Alerts — {{ expiringApprovals.length }} product{{ expiringApprovals.length !== 1 ? 's' : '' }} affected (next 120 days)</strong>
+                <span class="expiry-chevron">{{ collapsedSections.expiryBanner ? '▶' : '▼' }}</span>
+              </div>
+              <ul v-show="!collapsedSections.expiryBanner" class="expiry-list">
+                <li v-for="a in expiringApprovals" :key="a.productId">
+                  <strong>{{ a.productName }}</strong> — BVL authorisation expires <strong>{{ a.bvlApprovalExpiry }}</strong>
+                </li>
+              </ul>
             </div>
-            <div class="disease-resistance">
-              <strong>Oidium:</strong> Resistance to sulfur and DMIs may develop. Rotate with quinolines and other modes of action.
-            </div>
-            <div class="disease-resistance">
-              <strong>Botrytis:</strong> Resistance to benzimidazoles is common. Alternate with fluazinam or multi-active products.
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Fungicide Buying Guide -->
-      <section class="buying-guide-section">
-        <h2 @click="toggleSection('buyingGuide')" class="section-header" :class="{ collapsed: collapsedSections.buyingGuide }">
-          <span class="section-toggle">{{ collapsedSections.buyingGuide ? '▶' : '▼' }}</span>
-          💰 Fungicide Buying Guide for the Year
-        </h2>
-        <div v-show="!collapsedSections.buyingGuide">
-
-          <!-- Approval expiry warnings -->
-          <div v-if="expiringApprovals.length > 0" class="expiry-warning-banner">
-            <strong>⚠ Approval Renewal Alerts (next 120 days):</strong>
-            <ul class="expiry-list">
-              <li v-for="a in expiringApprovals" :key="a.productId">
-                <strong>{{ a.productName }}</strong> ({{ a.activeSubstance }}) —
-                BVL authorisation expires <strong>{{ a.bvlApprovalExpiry }}</strong>.
-                <span v-if="a.bvlRegistrationNumber" class="expiry-note">Kennzeichen: {{ a.bvlRegistrationNumber }}</span>
-              </li>
-            </ul>
-          </div>
-
-          <div v-if="loadingFungicides" class="loading-message">
-            Loading fungicide recommendations...
-          </div>
-          <div v-else-if="Object.keys(fungicidesByDisease).length === 0" class="no-data-message">
-            No fungicide data available. Run BVL Sync in the Data Sync section to import products.
-          </div>
-          <div v-else class="buying-guide-container">
-            <div v-for="disease in diseases" :key="disease.id" class="disease-buying-guide">
-              <h3>{{ disease.icon || '🍇' }} For {{ disease.commonName }}</h3>
-
-              <!-- Rotation plan from DB -->
-              <div v-if="rotationPlans[disease.id]" class="rotation-plan-box">
-                <div class="rotation-plan-title">Resistance Management Rotation</div>
-                <div class="rotation-sequence">
-                  <span
-                    v-for="(step, idx) in rotationPlans[disease.id].rotationSequence"
-                    :key="idx"
-                    class="rotation-step"
+            <!-- Peronospora slots -->
+            <div v-if="planTargets.peronospora" class="disease-slot-block">
+              <h3 class="disease-slot-title">🍂 Peronospora — Rotation Slots</h3>
+              <p class="frac-source">Source: FRAC CAA Working Group &amp; Phenylamide Expert Forum recommendations for <em>Plasmopara viticola</em></p>
+              <div v-for="slot in activePeronSlots" :key="slot.id" class="frac-slot-card">
+                <div class="slot-meta">
+                  <div class="slot-badges">
+                    <span class="slot-pos-badge">{{ slot.label }}</span>
+                    <span v-for="fc in slot.fracCodes" :key="fc" class="frac-code-badge">FRAC {{ fc }}</span>
+                    <span v-if="slot.optional" class="optional-tag">optional</span>
+                  </div>
+                  <div class="slot-title-row">
+                    <strong>{{ slot.name }}</strong>
+                    <span class="slot-uses">Used {{ peronSequence.filter(s => s === slot.id).length }}× this season</span>
+                  </div>
+                  <div class="slot-rule-text">{{ slot.rule }}</div>
+                  <div v-if="slot.warning" class="slot-warning-text">⚠ {{ slot.warning }}</div>
+                </div>
+                <p class="multi-select-hint">Click to select/deselect. Multiple products rotate through this slot.</p>
+                <div class="slot-product-list">
+                  <div v-if="peronProductsForSlot(slot).length === 0" class="no-slot-products">
+                    No products found for FRAC {{ slot.fracCodes.join(' / ') }} linked to Peronospora — run BVL Sync to populate.
+                  </div>
+                  <div
+                    v-for="product in peronProductsForSlot(slot)"
+                    :key="product.id"
+                    class="product-radio-card"
+                    :class="{
+                      selected: selectedSlots.peronospora[slot.id].includes(product.id),
+                      'frac-unverified': product.fracUnknown
+                    }"
+                    @click="toggleSlotProduct('peronospora', slot.id, product.id)"
                   >
-                    <span class="frac-badge">FRAC {{ step.fracCode }}</span>
-                    <span class="rotation-products">{{ step.fungicides.map(f => f.name).join(' / ') }}</span>
-                    <span v-if="idx < rotationPlans[disease.id].rotationSequence.length - 1" class="rotation-arrow">→</span>
-                  </span>
-                </div>
-                <div class="rotation-rule">
-                  Min. {{ rotationPlans[disease.id].minDaysBetweenRotation }} days before repeating same FRAC class
-                </div>
-              </div>
-
-              <div v-if="fungicidesByDisease[disease.id] && fungicidesByDisease[disease.id].length > 0">
-                <div
-                  v-for="fungicide in fungicidesByDisease[disease.id]"
-                  :key="fungicide.id"
-                  class="buying-recommendation"
-                  :class="{ 'resistance-high': fungicide.resistanceRisk === 'HIGH', 'resistance-medium': fungicide.resistanceRisk === 'MEDIUM' }"
-                >
-                  <div class="product-name">{{ fungicide.name }} <span class="product-substance">({{ fungicide.activeSubstance }})</span></div>
-                  <div class="product-details">
-                    <span class="detail-item"><strong>Concentration:</strong> {{ fungicide.concentration }}%</span>
-                    <span v-if="fungicide.baseDosageMlHa" class="detail-item"><strong>Dosage:</strong> {{ fungicide.baseDosageMlHa }} mL/ha</span>
-                    <span v-if="fungicide.phiDays" class="detail-item"><strong>PHI:</strong> {{ fungicide.phiDays }} days</span>
-                    <span v-if="fungicide.manufacturer" class="detail-item"><strong>Manufacturer:</strong> {{ fungicide.manufacturer }}</span>
-                    <span v-if="fungicide.fracCode" class="detail-item">
-                      <strong>FRAC:</strong>
-                      <span class="frac-badge-inline" :class="'resistance-' + (fungicide.resistanceRisk || 'LOW').toLowerCase()">
-                        {{ fungicide.fracCode }}
+                    <div class="prc-header">
+                      <span class="prc-name">{{ product.name }}</span>
+                      <span v-if="product.fracUnknown" class="frac-unknown-badge" title="FRAC code not yet resolved from BVL — may fit this slot">FRAC?</span>
+                      <span v-else class="frac-verified-badge">FRAC {{ product.fracCode }}</span>
+                    </div>
+                    <div class="prc-sub">{{ product.activeSubstance }}</div>
+                    <div class="prc-info-grid">
+                      <span v-if="product.baseDosageMlHa && vineyard" class="prc-info-item">
+                        <span class="prc-info-label">Per app:</span>
+                        {{ Math.round(product.baseDosageMlHa * vineyard.sizeAres / 10000) }} mL
+                        <span class="prc-info-sub">({{ product.baseDosageMlHa.toFixed(0) }} mL/ha)</span>
                       </span>
-                      <span v-if="fungicide.resistanceRisk === 'HIGH'" class="resistance-warning"> HIGH RESISTANCE RISK</span>
-                    </span>
-                    <span v-if="fungicide.fracDescription" class="detail-item moa-item"><strong>Mode of Action:</strong> {{ fungicide.fracDescription }}</span>
+                      <span v-if="product.phiDays" class="prc-info-item">
+                        <span class="prc-info-label">PHI:</span> {{ product.phiDays }} days
+                      </span>
+                      <span v-if="product.manufacturerName" class="prc-info-item prc-info-mfg">
+                        {{ product.manufacturerName }}
+                      </span>
+                      <span v-if="product.bvlRegistrationNumber" class="prc-info-item prc-info-reg">
+                        Kennz. {{ product.bvlRegistrationNumber }}
+                      </span>
+                      <span v-if="product.concentration" class="prc-info-item">
+                        <span class="prc-info-label">Conc.:</span> {{ product.concentration }}%
+                      </span>
+                    </div>
+                    <div v-if="expiringApprovals.find(a => a.productId === product.id)" class="prc-expiry">
+                      ⚠ BVL expires {{ expiringApprovals.find(a => a.productId === product.id).bvlApprovalExpiry }}
+                    </div>
+                    <div class="prc-selected-check" v-if="selectedSlots.peronospora[slot.id].includes(product.id)">✓ selected</div>
+                  </div>
+                </div>
+                <div v-if="selectedSlots.peronospora[slot.id].length > 0" class="slot-qty-row">
+                  <div v-for="(productId, pi) in selectedSlots.peronospora[slot.id]" :key="productId">
+                    ✓ <strong>{{ getProductName(productId) }}</strong>:
+                    buy {{ calcBuyQtyForProductInSlot(productId, pi, selectedSlots.peronospora[slot.id].length, peronSequence.filter(s => s === slot.id).length) }}
+                    ({{ productUsesInSlot(peronSequence.filter(s => s === slot.id).length, selectedSlots.peronospora[slot.id].length, pi) }} application{{ productUsesInSlot(peronSequence.filter(s => s === slot.id).length, selectedSlots.peronospora[slot.id].length, pi) !== 1 ? 's' : '' }})
                   </div>
                 </div>
               </div>
-              <div v-else class="no-products-message">
-                No approved fungicides linked to {{ disease.commonName }} yet. Run BVL Sync to populate.
+            </div>
+            <!-- Oidium slots -->
+            <div v-if="planTargets.oidium" class="disease-slot-block">
+              <h3 class="disease-slot-title">🌬 Oidium — Rotation Slots</h3>
+              <p class="frac-source">Source: FRAC SBI Working Group recommendations for <em>Erysiphe necator</em></p>
+              <div v-for="slot in activeOidiumSlots" :key="slot.id" class="frac-slot-card">
+                <div class="slot-meta">
+                  <div class="slot-badges">
+                    <span class="slot-pos-badge">{{ slot.label }}</span>
+                    <span v-for="fc in slot.fracCodes" :key="fc" class="frac-code-badge">FRAC {{ fc }}</span>
+                    <span v-if="slot.optional" class="optional-tag">optional</span>
+                  </div>
+                  <div class="slot-title-row">
+                    <strong>{{ slot.name }}</strong>
+                    <span class="slot-uses">Used {{ oidiumSequence.filter(s => s === slot.id).length }}× this season</span>
+                  </div>
+                  <div class="slot-rule-text">{{ slot.rule }}</div>
+                  <div v-if="slot.warning" class="slot-warning-text">⚠ {{ slot.warning }}</div>
+                </div>
+                <p class="multi-select-hint">Click to select/deselect. Multiple products rotate through this slot.</p>
+                <div class="slot-product-list">
+                  <div v-if="oidiumProductsForSlot(slot).length === 0" class="no-slot-products">
+                    No products found for FRAC {{ slot.fracCodes.join(' / ') }} linked to Oidium — run BVL Sync to populate.
+                  </div>
+                  <div
+                    v-for="product in oidiumProductsForSlot(slot)"
+                    :key="product.id"
+                    class="product-radio-card"
+                    :class="{
+                      selected: selectedSlots.oidium[slot.id].includes(product.id),
+                      'frac-unverified': product.fracUnknown
+                    }"
+                    @click="toggleSlotProduct('oidium', slot.id, product.id)"
+                  >
+                    <div class="prc-header">
+                      <span class="prc-name">{{ product.name }}</span>
+                      <span v-if="product.fracUnknown" class="frac-unknown-badge" title="FRAC code not yet resolved from BVL — may fit this slot">FRAC?</span>
+                      <span v-else class="frac-verified-badge">FRAC {{ product.fracCode }}</span>
+                    </div>
+                    <div class="prc-sub">{{ product.activeSubstance }}</div>
+                    <div class="prc-info-grid">
+                      <span v-if="product.baseDosageMlHa && vineyard" class="prc-info-item">
+                        <span class="prc-info-label">Per app:</span>
+                        {{ Math.round(product.baseDosageMlHa * vineyard.sizeAres / 10000) }} mL
+                        <span class="prc-info-sub">({{ product.baseDosageMlHa.toFixed(0) }} mL/ha)</span>
+                      </span>
+                      <span v-if="product.phiDays" class="prc-info-item">
+                        <span class="prc-info-label">PHI:</span> {{ product.phiDays }} days
+                      </span>
+                      <span v-if="product.manufacturerName" class="prc-info-item prc-info-mfg">
+                        {{ product.manufacturerName }}
+                      </span>
+                      <span v-if="product.bvlRegistrationNumber" class="prc-info-item prc-info-reg">
+                        Kennz. {{ product.bvlRegistrationNumber }}
+                      </span>
+                      <span v-if="product.concentration" class="prc-info-item">
+                        <span class="prc-info-label">Conc.:</span> {{ product.concentration }}%
+                      </span>
+                    </div>
+                    <div v-if="expiringApprovals.find(a => a.productId === product.id)" class="prc-expiry">
+                      ⚠ BVL expires {{ expiringApprovals.find(a => a.productId === product.id).bvlApprovalExpiry }}
+                    </div>
+                    <div class="prc-selected-check" v-if="selectedSlots.oidium[slot.id].includes(product.id)">✓ selected</div>
+                  </div>
+                </div>
+                <div v-if="selectedSlots.oidium[slot.id].length > 0" class="slot-qty-row">
+                  <div v-for="(productId, pi) in selectedSlots.oidium[slot.id]" :key="productId">
+                    ✓ <strong>{{ getProductName(productId) }}</strong>:
+                    buy {{ calcBuyQtyForProductInSlot(productId, pi, selectedSlots.oidium[slot.id].length, oidiumSequence.filter(s => s === slot.id).length) }}
+                    ({{ productUsesInSlot(oidiumSequence.filter(s => s === slot.id).length, selectedSlots.oidium[slot.id].length, pi) }} application{{ productUsesInSlot(oidiumSequence.filter(s => s === slot.id).length, selectedSlots.oidium[slot.id].length, pi) !== 1 ? 's' : '' }})
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+            <!-- Shopping summary + confirm -->
+            <div class="planner-summary-block">
+              <h3>🛒 Your Shopping List</h3>
+              <div v-if="shoppingList.length === 0" class="no-data-message">
+                Select at least one product per active slot above to generate your shopping list.
+              </div>
+              <div v-else>
+                <table class="shopping-table">
+                  <thead>
+                    <tr>
+                      <th>Product</th><th>Active Substance</th><th>FRAC</th><th>Applications</th><th>Buy (total)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="item in shoppingList" :key="item.productId">
+                      <td>
+                        {{ item.productName }}
+                        <div v-if="item.expiringApproval" class="expiry-inline">⚠ BVL expires {{ item.expiringApproval }}</div>
+                      </td>
+                      <td>{{ item.activeSubstance }}</td>
+                      <td><span class="frac-code-badge">{{ item.fracCode }}</span></td>
+                      <td>{{ item.applications }}×</td>
+                      <td>
+                        <strong v-if="item.totalMl">{{ item.totalMl >= 1000 ? (item.totalMl / 1000).toFixed(2) + ' L' : item.totalMl + ' mL' }}</strong>
+                        <span v-else class="qty-unknown">—</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div class="confirm-block">
+                  <p v-if="purchasesConfirmed" class="confirmed-msg">✅ Purchases confirmed — spray plan generated below.</p>
+                  <button class="btn-confirm" @click="confirmPurchasesAndGeneratePlan">
+                    {{ purchasesConfirmed ? '↻ Update Spray Plan' : '✓ Confirm Purchases & Generate Spray Plan' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </template>
         </div>
       </section>
 
-      <!-- Seasonal Spray Schedule -->
-      <section class="spray-schedule-section">
-        <h2 @click="toggleSection('spraySchedule')" class="section-header" :class="{ collapsed: collapsedSections.spraySchedule }">
-          <span class="section-toggle">{{ collapsedSections.spraySchedule ? '▶' : '▼' }}</span>
-          📅 Seasonal Spray Schedule (Year-Round Plan)
+      <!-- My Spray Plan (Phase 2) -->
+      <section class="spray-plan-section" v-if="purchasesConfirmed && sprayPlan.length > 0">
+        <h2 @click="toggleSection('sprayPlan')" class="section-header" :class="{ collapsed: collapsedSections.sprayPlan }">
+          <span class="section-toggle">{{ collapsedSections.sprayPlan ? '▶' : '▼' }}</span>
+          📅 My Spray Plan
         </h2>
-        <div v-show="!collapsedSections.spraySchedule" class="schedule-note">Adjust dates based on actual weather conditions and disease pressure. Monitor forecasts weekly.</div>
-        <div v-show="!collapsedSections.spraySchedule" class="schedule-grid">
-          <div class="month-schedule">
-            <h3>April - Bud Break (Risk: MEDIUM)</h3>
-            <div class="schedule-entry">
-              <strong>Week 1-2:</strong> Start preventive sulfur (Netzschwefel 1.5 kg/ha) for Oidium risk
-            </div>
-            <div class="schedule-entry">
-              <strong>Week 3-4:</strong> First Peronospora spray - Dithane (2-3 g/100L) if rain + high humidity
-            </div>
+        <div v-show="!collapsedSections.sprayPlan">
+          <p class="spray-plan-intro">
+            Generated from your confirmed product selection. One row = one spray application day — both peronospora and oidium products can be tank-mixed in a single pass.
+            Intervals: 9 days early season (April–June), 11 days mid-season, 13 days late season.
+            Adjust based on weather and WBI prognosis above.
+          </p>
+          <div class="spray-plan-table-wrap">
+            <table class="spray-plan-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Target date</th>
+                  <th>🍂 Peronospora product</th>
+                  <th>🌬 Oidium product</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="(event, idx) in sprayPlan"
+                  :key="idx"
+                  :class="{
+                    'plan-past': event.isPast,
+                    'plan-next': event.isNext,
+                    'plan-warning': (event.peron && event.peron.ruleWarning) || (event.oidium && event.oidium.ruleWarning)
+                  }"
+                >
+                  <td class="plan-num">{{ idx + 1 }}</td>
+                  <td class="plan-date">
+                    {{ event.targetDate }}
+                    <span v-if="event.isNext" class="next-badge">NEXT</span>
+                  </td>
+                  <!-- Peronospora cell -->
+                  <td class="plan-disease-cell">
+                    <template v-if="event.peron">
+                      <div class="plan-product-name">{{ event.peron.productName }}</div>
+                      <div class="plan-substance">{{ event.peron.activeSubstance }}</div>
+                      <div class="plan-cell-meta">
+                        <span class="frac-code-badge">FRAC {{ event.peron.fracCode }}</span>
+                        <span v-if="event.peron.qtyMl" class="plan-qty-inline">{{ event.peron.qtyMl }} mL</span>
+                        <span v-else class="qty-unknown">Check label</span>
+                      </div>
+                      <div class="plan-rule-text">{{ event.peron.ruleNote }}</div>
+                    </template>
+                    <span v-else class="plan-no-product">— not selected</span>
+                  </td>
+                  <!-- Oidium cell -->
+                  <td class="plan-disease-cell">
+                    <template v-if="event.oidium">
+                      <div class="plan-product-name">{{ event.oidium.productName }}</div>
+                      <div class="plan-substance">{{ event.oidium.activeSubstance }}</div>
+                      <div class="plan-cell-meta">
+                        <span class="frac-code-badge">FRAC {{ event.oidium.fracCode }}</span>
+                        <span v-if="event.oidium.qtyMl" class="plan-qty-inline">{{ event.oidium.qtyMl }} mL</span>
+                        <span v-else class="qty-unknown">Check label</span>
+                      </div>
+                      <div class="plan-rule-text">{{ event.oidium.ruleNote }}</div>
+                    </template>
+                    <span v-else class="plan-no-product">— not selected</span>
+                  </td>
+                  <td>
+                    <button class="btn-log-spray" @click="prefillSprayDiary(event)" title="Pre-fill spray diary">📝</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-
-          <div class="month-schedule">
-            <h3>May - High Risk Oidium Window (Risk: HIGH for Oidium)</h3>
-            <div class="schedule-entry">
-              <strong>Week 1:</strong> Sulfur spray #2 (every 7-10 days during high risk)
-            </div>
-            <div class="schedule-entry">
-              <strong>Week 2:</strong> Flint rotation spray (1 L/ha) - prevents sulfur resistance
-            </div>
-            <div class="schedule-entry">
-              <strong>Week 3:</strong> Back to sulfur #3
-            </div>
-            <div class="schedule-entry">
-              <strong>Week 4:</strong> Peronospora check - Dithane if conditions warrant
-            </div>
-          </div>
-
-          <div class="month-schedule">
-            <h3>June - Declining Oidium, Rising Peronospora (Risk: MEDIUM-HIGH)</h3>
-            <div class="schedule-entry">
-              <strong>Week 1-2:</strong> Sulfur #4 (frequency decreasing as temperatures rise)
-            </div>
-            <div class="schedule-entry">
-              <strong>Week 3:</strong> Switch to Peronospora focus - Cuproxat (2-4 L/ha) for rotation
-            </div>
-            <div class="schedule-entry">
-              <strong>Week 4:</strong> Peronospora spray #2 as needed based on rain forecast
-            </div>
-          </div>
-
-          <div class="month-schedule">
-            <h3>July - Mid-Season (Risk: VARIABLE)</h3>
-            <div class="schedule-entry">
-              <strong>Week 1-2:</strong> Peronospora maintenance - Delan (1.5 g/100L) for rotation
-            </div>
-            <div class="schedule-entry">
-              <strong>Week 3:</strong> Growth stage: BBCH 70-75 - Dosage adjustment begins
-            </div>
-            <div class="schedule-entry">
-              <strong>Week 4:</strong> Monitor rainfall patterns, spray if rain + cold expected
-            </div>
-          </div>
-
-          <div class="month-schedule">
-            <h3>August - Pre-Veraison (Risk: DECLINING but monitor)</h3>
-            <div class="schedule-entry">
-              <strong>Week 1-2:</strong> Peronospora spray #3 - Dithane (rotate back, 2 g/100L)
-            </div>
-            <div class="schedule-entry">
-              <strong>Week 3:</strong> Growth stage: BBCH 80 (Veraison) - Apply 20% dosage reduction
-            </div>
-            <div class="schedule-entry">
-              <strong>Week 4:</strong> Final inspection for disease pressure
-            </div>
-          </div>
-
-          <div class="month-schedule">
-            <h3>September - Harvest Period (Risk: NONE)</h3>
-            <div class="schedule-entry">
-              <strong>Week 1-2:</strong> Harvest in progress - NO SPRAYING after August
-            </div>
-            <div class="schedule-entry">
-              <strong>Week 3-4:</strong> Post-harvest cleanup and disease monitoring
-            </div>
-          </div>
-
-          <div class="month-schedule">
-            <h3>October - Post-Harvest (Risk: NONE)</h3>
-            <div class="schedule-entry">
-              <strong>All week:</strong> Season complete - monitoring only
-            </div>
-            <div class="schedule-entry">
-              <strong>Post-harvest:</strong> Review spray effectiveness, plan next season
-            </div>
+          <div class="spray-plan-notes">
+            <strong>Key FRAC rules encoded in this plan:</strong>
+            <ul>
+              <li>Peronospora: CAA (FRAC 40) max 3–4 applications/season — <em>FRAC CAA Working Group 2024</em></li>
+              <li>Peronospora: Phenylamide (FRAC 4) max 4/season, max 2 consecutive, always in mixture — <em>FRAC Phenylamide Expert Forum 2020</em></li>
+              <li>Oidium: DMI/triazole (FRAC 3) max 50% of sprays, max 3 consecutive — <em>FRAC SBI Working Group 2025</em></li>
+              <li>Multisite contacts (FRAC M1, M2, M3, M4) have no FRAC application limit and form the backbone of every program</li>
+            </ul>
           </div>
         </div>
       </section>
@@ -869,6 +940,85 @@
 <script>
 import axios from 'axios'
 
+// FRAC rotation slot definitions — based on official FRAC Working Group recommendations
+const PERON_SLOTS = [
+  {
+    id: 'P1', label: 'Slot P1',
+    name: 'Multisite contact backbone',
+    fracCodes: ['M1', 'M3', 'M4'],
+    optional: false,
+    rule: 'No FRAC resistance limit. Forms the backbone of every program — use on every spray not covered by other slots. Copper (M1), dithiocarbamates (M3), phthalimides (M4).',
+    warning: null,
+    ruleShort: 'No FRAC application limit (multisite contact)'
+  },
+  {
+    id: 'P2', label: 'Slot P2',
+    name: 'CAA fungicide — systemic, preventive',
+    fracCodes: ['40'],
+    optional: false,
+    rule: 'FRAC CAA WG 2024: max 3–4 applications/season. Always apply preventively before expected rain. Always alternate with multisite contact partner.',
+    warning: null,
+    ruleShort: 'CAA WG: max 3–4/season, preventive before rain'
+  },
+  {
+    id: 'P3', label: 'Slot P3',
+    name: 'Phenylamide — systemic (optional, high pressure)',
+    fracCodes: ['4'],
+    optional: true,
+    rule: 'FRAC Phenylamide EF 2020: max 2–4 applications/season, never more than 2 consecutive, always in mixture with a partner from a different FRAC group. Use only under high disease pressure.',
+    warning: 'Resistance to FRAC 4 is documented in P. viticola populations in Germany. Use only when high disease pressure justifies it and always in mixture with a non-FRAC-4 partner.',
+    ruleShort: 'Phenylamide EF: max 4/season, max 2 consecutive, always in mixture'
+  },
+  {
+    id: 'P4', label: 'Slot P4',
+    name: 'Phosphonate — systemic, late season (optional)',
+    fracCodes: ['33'],
+    optional: true,
+    rule: 'No FRAC resistance limit. Systemic with curative activity. Useful as a late-season application after the CAA limit is reached, or following heavy infection periods.',
+    warning: null,
+    ruleShort: 'No FRAC application limit — systemic curative'
+  }
+]
+
+const OIDIUM_SLOTS = [
+  {
+    id: 'O1', label: 'Slot O1',
+    name: 'Sulfur backbone',
+    fracCodes: ['M2'],
+    optional: false,
+    rule: 'No FRAC resistance limit. Backbone for powdery mildew throughout the entire season. Do not apply above 28°C (phytotoxic risk, especially under high UV).',
+    warning: null,
+    ruleShort: 'No FRAC application limit — do not spray above 28°C'
+  },
+  {
+    id: 'O2', label: 'Slot O2',
+    name: 'DMI / triazole — sterol biosynthesis inhibitor',
+    fracCodes: ['3'],
+    optional: false,
+    rule: 'FRAC SBI WG 2025: limit to max 50% of total oidium sprays per season. Max 3 consecutive applications of any SBI. Always alternate or mix with a non-SBI fungicide.',
+    warning: null,
+    ruleShort: 'SBI WG: max 50% of sprays, max 3 consecutive applications'
+  },
+  {
+    id: 'O3', label: 'Slot O3',
+    name: 'Amine / morpholine — SBI group (optional)',
+    fracCodes: ['5'],
+    optional: true,
+    rule: 'FRAC SBI WG: cross-resistant with DMI (both belong to the SBI group). Use to replace one DMI application mid-season for rotation. Counts toward the SBI 50% total.',
+    warning: null,
+    ruleShort: 'SBI cross-resistance group — counts with DMI toward the 50% limit'
+  },
+  {
+    id: 'O4', label: 'Slot O4',
+    name: 'Quinoline — key rotation partner (optional)',
+    fracCodes: ['13'],
+    optional: true,
+    rule: 'Key rotation partner for DMIs. Completely different mode of action — breaks SBI selection pressure. Registered specifically for powdery mildew. No cross-resistance with SBI group.',
+    warning: null,
+    ruleShort: 'FRAC 13 — no cross-resistance with DMI or amines'
+  }
+]
+
 export default {
   name: 'App',
   data() {
@@ -927,6 +1077,14 @@ export default {
       syncStatus: null,
       syncingBvl: false,
       bvlSyncMessage: null,
+      // Season planner
+      planTargets: { peronospora: true, oidium: true },
+      planSprayCount: 7,
+      selectedSlots: {
+        peronospora: { P1: [], P2: [], P3: [], P4: [] },
+        oidium: { O1: [], O2: [], O3: [], O4: [] }
+      },
+      purchasesConfirmed: false,
       collapsedSections: {
         weather: false,
         rainfallTiming: false,
@@ -934,14 +1092,202 @@ export default {
         riskAssessment: false,
         wbiPrognosis: false,
         sprayLog: false,
-        recommendations: false,
-        resistanceGuidelines: false,
-        buyingGuide: false,
-        spraySchedule: false,
+        seasonPlanner: false,
+        sprayPlan: false,
+        expiryBanner: false,
         dosageCalculator: false,
         dataSync: true,
         resources: false
       }
+    }
+  },
+  computed: {
+    peronDiseaseId () {
+      const d = this.diseases.find(d => d.commonName && d.commonName.toLowerCase().includes('peronospora'))
+      return d ? d.id : null
+    },
+    oidiumDiseaseId () {
+      const d = this.diseases.find(d => d.commonName && d.commonName.toLowerCase().includes('oidium'))
+      return d ? d.id : null
+    },
+    activePeronSlots () {
+      return PERON_SLOTS.filter(s => !s.optional || this.planSprayCount >= 6)
+    },
+    activeOidiumSlots () {
+      return OIDIUM_SLOTS.filter(s => !s.optional || this.planSprayCount >= 6)
+    },
+    // Computed spray sequence for peronospora — respects FRAC CAA WG and Phenylamide EF limits
+    peronSequence () {
+      const n = this.planSprayCount
+      const seq = Array(n).fill('P1')
+      if (this.selectedSlots.peronospora.P2.length > 0) {
+        // CAA: place at positions 1, 3, 5 (0-indexed), max 3 per FRAC CAA WG
+        const caaMax = Math.min(3, Math.max(1, Math.floor(n * 0.43)))
+        for (let i = 1, count = 0; i < n && count < caaMax; i += 2, count++) {
+          seq[i] = 'P2'
+        }
+      }
+      if (this.selectedSlots.peronospora.P3.length > 0) {
+        // Phenylamide: mid-season, not consecutive with P2
+        const midIdx = Math.floor(n * 0.57)
+        const targetIdx = seq[midIdx] === 'P2' ? midIdx + 1 : midIdx
+        if (targetIdx < n) seq[targetIdx] = 'P3'
+      }
+      if (this.selectedSlots.peronospora.P4.length > 0) {
+        // Phosphonate: late season — find P1 nearest to n-2
+        const lateIdx = n - 2
+        let best = -1, bestDist = Infinity
+        for (let j = 0; j < n; j++) {
+          if (seq[j] === 'P1') {
+            const d = Math.abs(j - lateIdx)
+            if (d < bestDist) { bestDist = d; best = j }
+          }
+        }
+        if (best >= 0) seq[best] = 'P4'
+      }
+      return seq
+    },
+    // Computed spray sequence for oidium — respects FRAC SBI WG limits
+    oidiumSequence () {
+      const n = this.planSprayCount
+      const seq = Array(n).fill('O1')
+      if (this.selectedSlots.oidium.O2.length > 0) {
+        // DMI: max 40% of sprays, every 3rd position to stay safely under 50%
+        const dmiMax = Math.min(4, Math.floor(n * 0.4))
+        for (let i = 1, count = 0; i < n && count < dmiMax; i += 3, count++) {
+          seq[i] = 'O2'
+        }
+      }
+      if (this.selectedSlots.oidium.O3.length > 0) {
+        // Amine: mid-season — replace the O2 slot nearest to mid-season
+        // (falls back to placing directly at midIdx if no O2 exists yet)
+        const midIdx = Math.floor(n * 0.5)
+        let best = -1, bestDist = Infinity
+        for (let j = 0; j < n; j++) {
+          if (seq[j] === 'O2') {
+            const d = Math.abs(j - midIdx)
+            if (d < bestDist) { bestDist = d; best = j }
+          }
+        }
+        if (best >= 0) {
+          seq[best] = 'O3'
+        } else {
+          // No O2 slots — place at midIdx directly
+          seq[midIdx] = 'O3'
+        }
+      }
+      if (this.selectedSlots.oidium.O4.length > 0) {
+        // Quinoline: late season — find O1 nearest to 70% mark
+        const lateIdx = Math.floor(n * 0.7)
+        let best = -1, bestDist = Infinity
+        for (let j = 0; j < n; j++) {
+          if (seq[j] === 'O1') {
+            const d = Math.abs(j - lateIdx)
+            if (d < bestDist) { bestDist = d; best = j }
+          }
+        }
+        if (best >= 0) seq[best] = 'O4'
+      }
+      return seq
+    },
+    shoppingList () {
+      const list = []
+      const allProducts = Object.values(this.fungicidesByDisease).flat()
+      const addSlots = (activeSlots, selectedSlots, sequence, diseaseLabel) => {
+        for (const slot of activeSlots) {
+          const productIds = selectedSlots[slot.id] || []
+          if (productIds.length === 0) continue
+          const totalUses = sequence.filter(s => s === slot.id).length
+          productIds.forEach((productId, pi) => {
+            const product = allProducts.find(p => p.id === productId)
+            if (!product) return
+            // Distribute uses across products in this slot (round-robin)
+            const thisUses = pi < (totalUses % productIds.length)
+              ? Math.ceil(totalUses / productIds.length)
+              : Math.floor(totalUses / productIds.length)
+            const qtyPerApp = (product.baseDosageMlHa && this.vineyard)
+              ? Math.round(product.baseDosageMlHa * this.vineyard.sizeAres / 10000) : null
+            const totalMl = qtyPerApp ? qtyPerApp * thisUses : null
+            const existing = list.find(i => i.productId === product.id)
+            if (existing) {
+              existing.applications += thisUses
+              if (existing.totalMl !== null && totalMl !== null) existing.totalMl += totalMl
+            } else {
+              list.push({
+                productId: product.id, productName: product.name,
+                activeSubstance: product.activeSubstance,
+                fracCode: product.fracCode && product.fracCode !== 'UNKNOWN' ? product.fracCode : slot.fracCodes[0],
+                applications: thisUses, totalMl,
+                expiringApproval: (this.expiringApprovals.find(a => a.productId === product.id) || {}).bvlApprovalExpiry || null
+              })
+            }
+          })
+        }
+      }
+      if (this.planTargets.peronospora) {
+        addSlots(this.activePeronSlots, this.selectedSlots.peronospora, this.peronSequence)
+      }
+      if (this.planTargets.oidium) {
+        addSlots(this.activeOidiumSlots, this.selectedSlots.oidium, this.oidiumSequence)
+      }
+      return list
+    },
+
+    sprayPlan () {
+      if (!this.purchasesConfirmed) return []
+      const today = new Date()
+      const vineyardAres = (this.vineyard && this.vineyard.sizeAres) || 10
+      const allProducts = Object.values(this.fungicidesByDisease).flat()
+      const getProduct = id => allProducts.find(p => p.id === id)
+      const intervals = [0, 9, 18, 27, 37, 48, 59, 70, 83, 96, 110, 124]
+      const n = this.planSprayCount
+
+      const makeDiseaseEvent = (slotId, allSlots, selectedSlots, diseaseId, sequence, idx) => {
+        const slot = allSlots.find(s => s.id === slotId)
+        if (!slot) return null
+        const productIds = selectedSlots[slotId] || []
+        if (productIds.length === 0) return null
+        const priorUses = sequence.slice(0, idx).filter(s => s === slotId).length
+        const product = getProduct(productIds[priorUses % productIds.length])
+        if (!product) return null
+        return {
+          slotId,
+          productName: product.name, productId: product.id,
+          diseaseId,
+          activeSubstance: product.activeSubstance,
+          fracCode: product.fracCode && product.fracCode !== 'UNKNOWN' ? product.fracCode : slot.fracCodes[0],
+          slotName: slot.name,
+          qtyMl: product.baseDosageMlHa ? Math.round(product.baseDosageMlHa * vineyardAres / 10000) : null,
+          ruleNote: slot.ruleShort, ruleWarning: !!slot.warning
+        }
+      }
+
+      const events = []
+      for (let i = 0; i < n; i++) {
+        const daysOffset = intervals[i] !== undefined ? intervals[i] : i * 10
+        const targetDate = new Date(today.getTime() + daysOffset * 86400000)
+        const peronEvent = this.planTargets.peronospora
+          ? makeDiseaseEvent(this.peronSequence[i], PERON_SLOTS, this.selectedSlots.peronospora, this.peronDiseaseId, this.peronSequence, i)
+          : null
+        const oidiumEvent = this.planTargets.oidium
+          ? makeDiseaseEvent(this.oidiumSequence[i], OIDIUM_SLOTS, this.selectedSlots.oidium, this.oidiumDiseaseId, this.oidiumSequence, i)
+          : null
+        if (peronEvent || oidiumEvent) {
+          const isPast = targetDate < today
+          events.push({
+            idx: i,
+            targetDate: targetDate.toLocaleDateString('de-DE'),
+            targetDateObj: targetDate,
+            peron: peronEvent, oidium: oidiumEvent,
+            isPast, isNext: false
+          })
+        }
+      }
+      let nextFound = false
+      events.forEach(e => {
+        if (!nextFound && !e.isPast) { e.isNext = true; nextFound = true }
+      })
+      return events
     }
   },
   mounted() {
@@ -973,6 +1319,7 @@ export default {
           this.fetchExpiringApprovals()
         ])
         this.lastUpdate = new Date().toLocaleTimeString()
+        this.loadPersistedPlan()
       } catch (err) {
         this.error = `Failed to load data: ${err.message}`
         console.error(err)
@@ -1468,6 +1815,153 @@ export default {
       const dosageLiters = (dosageMlPer100L / 100.0) * (totalWaterLiters / 100.0)
       
       return dosageLiters.toFixed(2)
+    },
+
+    // ===== Season Planner methods =====
+
+    peronProductsForSlot (slot) {
+      if (!this.peronDiseaseId) return []
+      const products = this.fungicidesByDisease[this.peronDiseaseId] || []
+      return products
+        .map(p => ({
+          ...p,
+          fracMatched: !!(p.fracCode && p.fracCode !== 'UNKNOWN' && slot.fracCodes.includes(p.fracCode)),
+          fracUnknown: !p.fracCode || p.fracCode === 'UNKNOWN'
+        }))
+        .filter(p => p.fracMatched || p.fracUnknown)
+        .sort((a, b) => {
+          if (a.fracMatched && !b.fracMatched) return -1
+          if (!a.fracMatched && b.fracMatched) return 1
+          if (a.baseDosageMlHa && !b.baseDosageMlHa) return -1
+          if (!a.baseDosageMlHa && b.baseDosageMlHa) return 1
+          return (a.name || '').localeCompare(b.name || '')
+        })
+    },
+
+    oidiumProductsForSlot (slot) {
+      if (!this.oidiumDiseaseId) return []
+      const products = this.fungicidesByDisease[this.oidiumDiseaseId] || []
+      return products
+        .map(p => ({
+          ...p,
+          fracMatched: !!(p.fracCode && p.fracCode !== 'UNKNOWN' && slot.fracCodes.includes(p.fracCode)),
+          fracUnknown: !p.fracCode || p.fracCode === 'UNKNOWN'
+        }))
+        .filter(p => p.fracMatched || p.fracUnknown)
+        .sort((a, b) => {
+          if (a.fracMatched && !b.fracMatched) return -1
+          if (!a.fracMatched && b.fracMatched) return 1
+          if (a.baseDosageMlHa && !b.baseDosageMlHa) return -1
+          if (!a.baseDosageMlHa && b.baseDosageMlHa) return 1
+          return (a.name || '').localeCompare(b.name || '')
+        })
+    },
+
+    toggleSlotProduct (disease, slotId, productId) {
+      const arr = this.selectedSlots[disease][slotId]
+      const idx = arr.indexOf(productId)
+      if (idx >= 0) {
+        arr.splice(idx, 1)
+      } else {
+        arr.push(productId)
+      }
+    },
+
+    getProductName (productId) {
+      const all = Object.values(this.fungicidesByDisease).flat()
+      const p = all.find(p => p.id === productId)
+      return p ? p.name : productId
+    },
+
+    productUsesInSlot (totalUses, totalProducts, productIndex) {
+      if (totalProducts === 0) return 0
+      return productIndex < (totalUses % totalProducts)
+        ? Math.ceil(totalUses / totalProducts)
+        : Math.floor(totalUses / totalProducts)
+    },
+
+    calcBuyQtyForProductInSlot (productId, productIndex, totalProducts, totalUses) {
+      const uses = this.productUsesInSlot(totalUses, totalProducts, productIndex)
+      const all = Object.values(this.fungicidesByDisease).flat()
+      const product = all.find(p => p.id === productId)
+      if (!product || !product.baseDosageMlHa || !this.vineyard) return '—'
+      const qtyPerApp = Math.round(product.baseDosageMlHa * this.vineyard.sizeAres / 10000)
+      const total = qtyPerApp * uses
+      return total >= 1000 ? `${(total / 1000).toFixed(2)} L` : `${total} mL`
+    },
+
+    calcBuyQty (productId, useCount) {
+      const allProducts = Object.values(this.fungicidesByDisease).flat()
+      const product = allProducts.find(p => p.id === productId)
+      if (!product || !product.baseDosageMlHa || !this.vineyard) return '—'
+      const qtyPerApp = Math.round(product.baseDosageMlHa * this.vineyard.sizeAres / 10000)
+      const total = qtyPerApp * useCount
+      return total >= 1000 ? `${(total / 1000).toFixed(2)} L` : `${total} mL`
+    },
+
+    confirmPurchasesAndGeneratePlan () {
+      this.purchasesConfirmed = true
+      try {
+        localStorage.setItem('rebenbot_selectedSlots', JSON.stringify(this.selectedSlots))
+        localStorage.setItem('rebenbot_planConfig', JSON.stringify({
+          planTargets: this.planTargets,
+          planSprayCount: this.planSprayCount
+        }))
+      } catch (e) { /* ignore storage errors */ }
+      this.collapsedSections.sprayPlan = false
+      this.$nextTick(() => {
+        const el = document.querySelector('.spray-plan-section')
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+    },
+
+    loadPersistedPlan () {
+      try {
+        const slotsJson = localStorage.getItem('rebenbot_selectedSlots')
+        const configJson = localStorage.getItem('rebenbot_planConfig')
+        if (slotsJson) {
+          const saved = JSON.parse(slotsJson)
+          // Support old single-value format as well as new array format
+          const toArray = v => Array.isArray(v) ? v : (v ? [v] : [])
+          if (saved.peronospora) {
+            for (const k of Object.keys(saved.peronospora)) {
+              if (this.selectedSlots.peronospora[k] !== undefined) {
+                this.selectedSlots.peronospora[k] = toArray(saved.peronospora[k])
+              }
+            }
+          }
+          if (saved.oidium) {
+            for (const k of Object.keys(saved.oidium)) {
+              if (this.selectedSlots.oidium[k] !== undefined) {
+                this.selectedSlots.oidium[k] = toArray(saved.oidium[k])
+              }
+            }
+          }
+        }
+        if (configJson) {
+          const c = JSON.parse(configJson)
+          if (c.planTargets) Object.assign(this.planTargets, c.planTargets)
+          if (c.planSprayCount) this.planSprayCount = c.planSprayCount
+        }
+        if (slotsJson) {
+          this.purchasesConfirmed = true
+        }
+      } catch (e) { /* ignore */ }
+    },
+
+    prefillSprayDiary (event) {
+      this.entryMode = 'spray'
+      // Pre-fill with peronospora product if available, else oidium
+      const primary = event.peron || event.oidium
+      this.newSpray.fungicideId = (primary && primary.productId) || ''
+      this.newSpray.diseaseId = (primary && primary.diseaseId) || ''
+      const now = new Date()
+      this.newSpray.applicationDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+      this.collapsedSections.sprayLog = false
+      this.$nextTick(() => {
+        const el = document.querySelector('.spray-diary-section')
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
     }
   }
 }
@@ -2759,8 +3253,23 @@ h2 {
   color: #5d4037;
 }
 
-.expiry-warning-banner strong {
+.expiry-banner-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.expiry-banner-header strong {
   color: #e65100;
+}
+
+.expiry-chevron {
+  font-size: 0.85rem;
+  color: #e65100;
+  min-width: 16px;
+  text-align: right;
 }
 
 .expiry-list {
@@ -2772,6 +3281,166 @@ h2 {
   margin-bottom: 6px;
   font-size: 13px;
   line-height: 1.5;
+}
+
+.multi-select-hint {
+  font-size: 0.8rem;
+  color: #888;
+  font-style: italic;
+  margin: 0 0 0.75rem 0;
+}
+
+.prc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin-bottom: 0.25rem;
+}
+
+.prc-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #333;
+  flex: 1;
+}
+
+.frac-verified-badge {
+  background: #e8f5e9;
+  color: #2e7d32;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.frac-unknown-badge {
+  background: #fff3e0;
+  color: #e65100;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: help;
+}
+
+.prc-sub {
+  font-size: 0.8rem;
+  color: #777;
+  margin-bottom: 0.5rem;
+}
+
+.prc-info-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.8rem;
+  font-size: 0.78rem;
+  margin-bottom: 0.4rem;
+}
+
+.prc-info-item {
+  color: #555;
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+.prc-info-label {
+  font-weight: 600;
+  color: #444;
+}
+
+.prc-info-sub {
+  color: #999;
+  font-size: 0.72rem;
+}
+
+.prc-info-mfg {
+  color: #667eea;
+  font-style: italic;
+}
+
+.prc-info-reg {
+  color: #888;
+  font-family: monospace;
+  font-size: 0.75rem;
+}
+
+.prc-expiry {
+  font-size: 0.75rem;
+  color: #c62828;
+  background: #ffebee;
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+  margin-top: 0.3rem;
+}
+
+.prc-selected-check {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #2e7d32;
+  margin-top: 0.3rem;
+}
+
+.product-radio-card.frac-unverified {
+  border-style: dashed;
+  border-color: #ffcc02;
+  background: #fffdf0;
+}
+
+.product-radio-card.frac-unverified:hover {
+  border-color: #ff9800;
+}
+
+.product-radio-card.frac-unverified.selected {
+  border-color: #667eea;
+  border-style: solid;
+  background: #f0f3ff;
+}
+
+/* Combined spray plan table */
+.plan-disease-cell {
+  vertical-align: top;
+  padding: 0.5rem 0.8rem;
+  min-width: 180px;
+}
+
+.plan-product-name {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: #333;
+  margin-bottom: 0.15rem;
+}
+
+.plan-cell-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.3rem;
+}
+
+.plan-qty-inline {
+  font-size: 0.8rem;
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.plan-rule-text {
+  font-size: 0.75rem;
+  color: #888;
+  margin-top: 0.25rem;
+  line-height: 1.3;
+}
+
+.plan-no-product {
+  color: #bbb;
+  font-size: 0.85rem;
+  font-style: italic;
 }
 
 .expiry-note {
@@ -3218,6 +3887,433 @@ h2 {
 .stat-label {
   font-size: 0.78rem;
   color: #666;
+}
+
+/* ===== Season Buying Decision (Phase 1) ===== */
+.season-planner-section {
+  grid-column: 1 / -1;
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin: 20px 0;
+}
+
+.planner-config-strip {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+  background: #f8f9ff;
+  border-radius: 8px;
+  border: 1px solid #e3e7ff;
+}
+
+.config-item {
+  flex: 1;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.config-item label {
+  font-weight: 600;
+  color: #444;
+  font-size: 0.95rem;
+}
+
+.disease-pill-group {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.disease-pill {
+  padding: 0.5rem 1.2rem;
+  border: 2px solid #ccc;
+  border-radius: 20px;
+  background: white;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.disease-pill.active {
+  border-color: #667eea;
+  background: #667eea;
+  color: white;
+}
+
+.spray-count-slider {
+  width: 100%;
+  accent-color: #667eea;
+}
+
+.slider-hint {
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.disease-slot-block {
+  margin-bottom: 2rem;
+}
+
+.disease-slot-title {
+  color: #333;
+  font-size: 1.15rem;
+  margin: 0 0 0.3rem 0;
+}
+
+.frac-source {
+  font-size: 0.82rem;
+  color: #888;
+  margin: 0 0 1rem 0;
+  font-style: italic;
+}
+
+.frac-slot-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1.2rem;
+  margin-bottom: 1rem;
+  background: #fafafa;
+}
+
+.slot-meta {
+  margin-bottom: 1rem;
+}
+
+.slot-badges {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.slot-pos-badge {
+  background: #667eea;
+  color: white;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.frac-code-badge {
+  background: #e8eaf6;
+  color: #3949ab;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.optional-tag {
+  background: #fff3e0;
+  color: #e65100;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.78rem;
+}
+
+.slot-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.3rem;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.slot-uses {
+  font-size: 0.82rem;
+  color: #667eea;
+  font-weight: 600;
+}
+
+.slot-rule-text {
+  font-size: 0.85rem;
+  color: #555;
+  line-height: 1.5;
+}
+
+.slot-warning-text {
+  font-size: 0.83rem;
+  color: #c62828;
+  background: #ffebee;
+  padding: 0.5rem 0.8rem;
+  border-radius: 4px;
+  margin-top: 0.5rem;
+  line-height: 1.4;
+}
+
+.slot-product-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.no-slot-products {
+  color: #999;
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.product-radio-card {
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 0.8rem 1rem;
+  cursor: pointer;
+  min-width: 160px;
+  max-width: 260px;
+  flex: 1;
+  transition: all 0.2s;
+  background: white;
+  display: block;
+}
+
+.product-radio-card:hover {
+  border-color: #667eea;
+}
+
+.product-radio-card.selected {
+  border-color: #667eea;
+  background: #f0f3ff;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.prc-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #333;
+  margin-bottom: 0.2rem;
+}
+
+.prc-sub {
+  font-size: 0.8rem;
+  color: #777;
+  margin-bottom: 0.4rem;
+}
+
+.prc-details {
+  display: flex;
+  gap: 0.8rem;
+  font-size: 0.78rem;
+  color: #667eea;
+  font-weight: 600;
+  flex-wrap: wrap;
+}
+
+.slot-qty-row {
+  font-size: 0.88rem;
+  color: #2e7d32;
+  background: #e8f5e9;
+  padding: 0.5rem 0.8rem;
+  border-radius: 4px;
+}
+
+.planner-summary-block {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: #f8f9ff;
+  border-radius: 8px;
+  border: 2px solid #c5cae9;
+}
+
+.planner-summary-block h3 {
+  margin: 0 0 1rem 0;
+  color: #333;
+}
+
+.shopping-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+}
+
+.shopping-table th {
+  text-align: left;
+  padding: 0.6rem 0.8rem;
+  background: #667eea;
+  color: white;
+  font-size: 0.85rem;
+}
+
+.shopping-table td {
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid #eee;
+  font-size: 0.88rem;
+  vertical-align: top;
+}
+
+.shopping-table tr:last-child td {
+  border-bottom: none;
+}
+
+.expiry-inline {
+  font-size: 0.78rem;
+  color: #e65100;
+  margin-top: 0.2rem;
+}
+
+.confirm-block {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.confirmed-msg {
+  color: #2e7d32;
+  font-weight: 600;
+  margin: 0;
+}
+
+.btn-confirm {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 0.8rem 1.8rem;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-confirm:hover {
+  background: #764ba2;
+  transform: translateY(-1px);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+/* ===== My Spray Plan (Phase 2) ===== */
+.spray-plan-section {
+  grid-column: 1 / -1;
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin: 20px 0;
+}
+
+.spray-plan-intro {
+  color: #555;
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+  background: #f8f9ff;
+  padding: 0.8rem 1rem;
+  border-radius: 6px;
+  border-left: 3px solid #667eea;
+}
+
+.spray-plan-table-wrap {
+  overflow-x: auto;
+}
+
+.spray-plan-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.spray-plan-table th {
+  text-align: left;
+  padding: 0.6rem 0.8rem;
+  background: #667eea;
+  color: white;
+  white-space: nowrap;
+}
+
+.spray-plan-table td {
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid #eee;
+  vertical-align: top;
+}
+
+.plan-past td {
+  color: #bbb;
+  background: #fafafa;
+}
+
+tr.plan-next {
+  background: #fff8e1;
+}
+
+tr.plan-next td {
+  font-weight: 600;
+}
+
+.next-badge {
+  background: #ff9800;
+  color: white;
+  padding: 0.1rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-left: 0.4rem;
+}
+
+.plan-substance {
+  font-size: 0.78rem;
+  color: #888;
+  margin-top: 0.2rem;
+}
+
+.plan-slot-name {
+  font-size: 0.78rem;
+  color: #667eea;
+  margin-top: 0.2rem;
+}
+
+.qty-unknown {
+  color: #aaa;
+  font-style: italic;
+}
+
+.btn-log-spray {
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.3rem 0.5rem;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.btn-log-spray:hover {
+  background: #f0f3ff;
+  border-color: #667eea;
+}
+
+.spray-plan-notes {
+  margin-top: 1.5rem;
+  padding: 1rem 1.5rem;
+  background: #f5f5f5;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.spray-plan-notes ul {
+  margin: 0.5rem 0 0 0;
+  padding-left: 1.5rem;
+}
+
+.spray-plan-notes li {
+  margin-bottom: 0.3rem;
+  color: #555;
+  line-height: 1.5;
 }
 
 </style>
