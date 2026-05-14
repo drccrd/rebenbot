@@ -26,6 +26,7 @@ public class SprayTimingService {
     }
 
     public static final double SIGNIFICANT_RAIN_MM = 2.0;
+    public static final double SIGNIFICANT_RAIN_HOURLY_MM = 0.3;
     public static final double SPRAY_WINDOW_DRY_TIME_HOURS = 4.0;
     public static final double SPRAY_DURATION_HOURS = 2.5;
 
@@ -103,7 +104,7 @@ public class SprayTimingService {
      */
     public Double getHoursSinceLastSignificantRain() {
         LocalDateTime cutoff = LocalDateTime.now().minusHours(72);
-        Optional<WeatherData> lastSignificantRain = weatherDataRepository.findMostRecentSignificantRain(cutoff, SIGNIFICANT_RAIN_MM);
+        Optional<WeatherData> lastSignificantRain = weatherDataRepository.findMostRecentSignificantRain(cutoff, SIGNIFICANT_RAIN_HOURLY_MM);
         
         if (lastSignificantRain.isPresent()) {
             long hoursSinceLong = java.time.temporal.ChronoUnit.HOURS.between(lastSignificantRain.get().getRecordedAt(), LocalDateTime.now());

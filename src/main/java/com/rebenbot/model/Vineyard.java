@@ -35,19 +35,7 @@ public class Vineyard {
 
     @Column(name = "last_spray_date")
     private LocalDateTime lastSprayDate;  // Track when fungicide was last applied
-    
-    @Column(name = "growth_stage")
-    private String growthStage;  // Current growth stage (manual override or GDD-calculated)
-    
-    @Column(name = "is_manual_growth_stage")
-    private Boolean isManualGrowthStage;  // true if manually set, false if calculated from GDD
-    
-    @Column(name = "growth_stage_last_updated")
-    private LocalDateTime growthStageLastUpdated;  // When the growth stage was last set/calculated
-    
-    @Column(name = "accumulated_gdd")
-    private Double accumulatedGdd;  // Accumulated Growing Degree Days since spring
-    
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
     

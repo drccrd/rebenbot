@@ -82,27 +82,26 @@ public class GrowthStageService {
         "VERAISON", "BERRY_RIPE", "DORMANT"
     );
 
-    // GDD Thresholds for each stage (cumulative from spring)
-    // Calibrated against vitimeteo Molitor (2014) model for Schriesheim region
-    // Must be a sorted map to ensure deterministic ordering
+    // GDD Thresholds for each stage (base 10 °C, cumulative from April 1)
+    // Source: Lorenz et al. (1994), DWD phenology data for SW-Germany, JKI Geilweilerhof.
     private static final List<Map.Entry<String, Integer>> GDD_THRESHOLDS = List.of(
-        Map.entry("BUD_SWELL", 0),          // BBCH 01 - Start of season
-        Map.entry("FIRST_LEAVES", 3),       // BBCH 09 - First signs of bud break (new leaves visible)
-        Map.entry("ONE_LEAF", 15),          // BBCH 11 - First leaf unfolded
-        Map.entry("TWO_LEAVES", 26),        // BBCH 12 - Two leaves unfolded
-        Map.entry("THREE_LEAVES", 34),      // BBCH 13 - Three leaves unfolded
-        Map.entry("FOUR_LEAVES", 44),       // BBCH 14 - Four leaves unfolded
-        Map.entry("FIVE_LEAVES", 55),       // BBCH 15 - Five leaves unfolded
-        Map.entry("SIX_LEAVES", 66),        // BBCH 16 - Six leaves unfolded
-        Map.entry("SEVEN_LEAVES", 77),      // BBCH 17 - Seven leaves unfolded
-        Map.entry("EIGHT_LEAVES", 88),      // BBCH 18 - Eight or more leaves unfolded
-        Map.entry("INFLORESCENCE_EMERGENCE", 110), // BBCH 50+ - Flower cluster development
-        Map.entry("FLOWERING", 130),        // BBCH 60+ - Flowering
-        Map.entry("FRUIT_SET", 160),        // BBCH 70+ - Fruit set
-        Map.entry("BERRY_GROWTH", 200),     // BBCH 75+ - Berries growing
-        Map.entry("VERAISON", 250),         // BBCH 81+ - Véraison (berries changing color)
-        Map.entry("BERRY_RIPE", 300),       // BBCH 89 - Berries fully ripe
-        Map.entry("DORMANT", 400)           // End of season
+        Map.entry("BUD_SWELL", 0),               // BBCH 01 - Buds begin to swell
+        Map.entry("FIRST_LEAVES", 5),             // BBCH 09 - First green leaf tips visible
+        Map.entry("ONE_LEAF", 20),                // BBCH 11 - 1 leaf unfolded (~15–25 GDD)
+        Map.entry("TWO_LEAVES", 35),              // BBCH 12 - 2 leaves unfolded
+        Map.entry("THREE_LEAVES", 50),            // BBCH 13
+        Map.entry("FOUR_LEAVES", 65),             // BBCH 14
+        Map.entry("FIVE_LEAVES", 80),             // BBCH 15
+        Map.entry("SIX_LEAVES", 95),              // BBCH 16
+        Map.entry("SEVEN_LEAVES", 112),           // BBCH 17
+        Map.entry("EIGHT_LEAVES", 128),           // BBCH 18 - 8+ leaves unfolded
+        Map.entry("INFLORESCENCE_EMERGENCE", 190),// BBCH 53 - Inflorescence separated
+        Map.entry("FLOWERING", 290),              // BBCH 65 - Full flowering
+        Map.entry("FRUIT_SET", 400),              // BBCH 71 - Fruit set
+        Map.entry("BERRY_GROWTH", 530),           // BBCH 77 - Bunch closure
+        Map.entry("VERAISON", 730),               // BBCH 85 - Véraison
+        Map.entry("BERRY_RIPE", 940),             // BBCH 89 - Harvest ripe
+        Map.entry("DORMANT", 1150)                // Leaf fall / dormant
     );
 
     /**
@@ -162,23 +161,12 @@ public class GrowthStageService {
     }
 
     /**
-     * Get current growth stage - returns manual override if set, otherwise GDD-calculated
+     * Get current growth stage based on accumulated GDD.
      */
-    public GrowthStageInfo getCurrentGrowthStage(String manualGrowthStage, Boolean isManual) {
-        String stage;
-        boolean isManualOverride;
-
-        if (isManual != null && isManual && manualGrowthStage != null) {
-            stage = manualGrowthStage;
-            isManualOverride = true;
-        } else {
-            double gdd = calculateAccumulatedGdd();
-            stage = determineGrowthStageFromGdd(gdd);
-            isManualOverride = false;
-        }
-
-        String description = BBCH_STAGES.getOrDefault(stage, "Unknown stage");
+    public GrowthStageInfo getCurrentGrowthStage() {
         double gdd = calculateAccumulatedGdd();
+        String stage = determineGrowthStageFromGdd(gdd);
+        String description = BBCH_STAGES.getOrDefault(stage, "Unknown stage");
         Integer nextThreshold = GDD_THRESHOLDS.stream()
                 .filter(entry -> entry.getKey().equals(stage))
                 .map(Map.Entry::getValue)
@@ -199,7 +187,7 @@ public class GrowthStageService {
                 ? description
                 : "Not yet visible (below BBCH 51)";
 
-        return new GrowthStageInfo(stage, description, gdd, nextThreshold, isManualOverride,
+        return new GrowthStageInfo(stage, description, gdd, nextThreshold,
                 shootBbch, shootName, berryBbch, berryName);
     }
 
@@ -216,21 +204,19 @@ public class GrowthStageService {
         public String stageBbchName;         // human-readable description of the current stage
         public double currentGdd;            // accumulated GDD since April 1
         public Integer gddThresholdForStage; // GDD at which this stage begins
-        public boolean isManualOverride;     // whether manually set
         public int shootBbch;                // BBCH 01-18 shoot/leaf stage code
         public String shootStageName;        // e.g., "BBCH 14 - Four leaves unfolded"
         public int berryBbch;                // BBCH 53-89 berry stage code (0 = not yet emerged)
         public String berryStageName;        // e.g., "BBCH 65 - Full flowering"
 
         public GrowthStageInfo(String stageCode, String stageBbchName, double currentGdd,
-                               Integer gddThresholdForStage, boolean isManualOverride,
+                               Integer gddThresholdForStage,
                                int shootBbch, String shootStageName,
                                int berryBbch, String berryStageName) {
             this.stageCode = stageCode;
             this.stageBbchName = stageBbchName;
             this.currentGdd = currentGdd;
             this.gddThresholdForStage = gddThresholdForStage;
-            this.isManualOverride = isManualOverride;
             this.shootBbch = shootBbch;
             this.shootStageName = shootStageName;
             this.berryBbch = berryBbch;

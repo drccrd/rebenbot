@@ -15,10 +15,6 @@ CREATE TABLE IF NOT EXISTS vineyards (
     region VARCHAR(255),
     description TEXT,
     last_spray_date TIMESTAMP,
-    growth_stage VARCHAR(50),
-    is_manual_growth_stage BOOLEAN DEFAULT FALSE,
-    growth_stage_last_updated TIMESTAMP,
-    accumulated_gdd DOUBLE PRECISION,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

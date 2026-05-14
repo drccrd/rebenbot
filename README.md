@@ -84,8 +84,8 @@ npm run build  # production build
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `METEOBLUE_API_KEY` | `demo` | Weather data (Meteoblue API) |
-| `DB_PASSWORD` | — | PostgreSQL password (from docker-compose) |
+| `METEOBLUE_API_KEY` | -- | Weather data (Meteoblue API) |
+| `DB_PASSWORD` | -- | PostgreSQL password (from docker-compose) |
 | `SPRING_PROFILES_ACTIVE` | default (H2) | Set to `postgres` for PostgreSQL |
 
 ### Health Check

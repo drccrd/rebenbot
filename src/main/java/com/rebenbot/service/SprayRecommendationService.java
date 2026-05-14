@@ -6,6 +6,7 @@ import com.rebenbot.model.WeatherData;
 import com.rebenbot.model.WbiPrognosis;
 import com.rebenbot.repository.VineyardLogEntryRepository;
 import com.rebenbot.repository.VineyardRepository;
+import com.rebenbot.repository.VitimeteoPhenoRepository;
 import com.rebenbot.repository.WeatherDataRepository;
 import com.rebenbot.repository.WbiPrognosisRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -51,15 +52,21 @@ public class SprayRecommendationService {
     private final VineyardLogEntryRepository logEntryRepository;
     private final VineyardRepository vineyardRepository;
     private final WeatherDataRepository weatherDataRepository;
+    private final GrowthStageService growthStageService;
+    private final VitimeteoPhenoRepository phenoRepository;
 
     public SprayRecommendationService(WbiPrognosisRepository wbiPrognosisRepository,
                                       VineyardLogEntryRepository logEntryRepository,
                                       VineyardRepository vineyardRepository,
-                                      WeatherDataRepository weatherDataRepository) {
+                                      WeatherDataRepository weatherDataRepository,
+                                      GrowthStageService growthStageService,
+                                      VitimeteoPhenoRepository phenoRepository) {
         this.wbiPrognosisRepository = wbiPrognosisRepository;
         this.logEntryRepository = logEntryRepository;
         this.vineyardRepository = vineyardRepository;
         this.weatherDataRepository = weatherDataRepository;
+        this.growthStageService = growthStageService;
+        this.phenoRepository = phenoRepository;
     }
 
     public SprayRecommendation getRecommendation(Long vineyardId) {
@@ -71,7 +78,7 @@ public class SprayRecommendationService {
                 .orElse(null);
 
         Vineyard vineyard = vineyardRepository.findById(vineyardId).orElse(null);
-        int bbch = parseBbch(vineyard);
+        int bbch = resolvedBbch(vineyard);
         double meanTemp = recentMeanTemperature(vineyardId);
 
         Optional<VineyardLogEntry> lastSprayEntry = logEntryRepository
@@ -83,7 +90,7 @@ public class SprayRecommendationService {
 
         // Per-disease target dates
         LocalDate peroTarget = peronosporaTarget(pero, today);
-        LocalDate oidiumTarget = oidiumTarget(bbch, meanTemp, lastSprayDate, today);
+        LocalDate oidiumTarget = oidiumTarget(bbch, meanTemp, lastSprayDate, today, oidium);
 
         // Combined: take the earlier (more urgent) target
         LocalDate targetDate;
@@ -167,12 +174,24 @@ public class SprayRecommendationService {
     // ---- Oidium ----
 
     /**
-     * Returns the oidium spray deadline based on the BBCH susceptibility window and
-     * a temperature-adjusted interval.  Returns null when outside BBCH 53–79.
+     * Returns the oidium spray deadline.
+     *
+     * Primary signal: vitimeteo WBI oidium prognosis — if INFECTION_RISK or HIGH is reported,
+     * schedule a spray regardless of BBCH, because vitimeteo's Ontogenetischer Index already
+     * incorporates tissue susceptibility.
+     *
+     * Fallback: BBCH 53–79 susceptibility window + temperature-adjusted interval.
+     * Returns null only when both WBI shows no risk AND BBCH is outside 53–79.
      */
-    private LocalDate oidiumTarget(int bbch, double meanTemp, LocalDate lastSprayDate, LocalDate today) {
-        if (bbch < 53 || bbch > 79) return null; // outside susceptibility window
-        if (lastSprayDate == null) return today;  // no prior spray in window — apply now
+    private LocalDate oidiumTarget(int bbch, double meanTemp, LocalDate lastSprayDate, LocalDate today,
+                                   WbiPrognosis oidiumWbi) {
+        boolean wbiActive = oidiumWbi != null
+                && ("INFECTION_RISK".equals(oidiumWbi.getRiskLevel()) || "HIGH".equals(oidiumWbi.getRiskLevel()));
+        boolean bbchActive = bbch >= 53 && bbch <= 79;
+
+        if (!wbiActive && !bbchActive) return null; // no risk signal from either source
+
+        if (lastSprayDate == null) return today;    // no prior spray — apply now
         return lastSprayDate.plusDays(oidiumSpraysInterval(bbch, meanTemp));
     }
 
@@ -201,18 +220,19 @@ public class SprayRecommendationService {
 
     // ---- Helpers ----
 
-    private int parseBbch(Vineyard vineyard) {
-        if (vineyard == null || vineyard.getGrowthStage() == null) return 0;
-        // Stage is stored as a key like "FLOWERING" or "FOUR_LEAVES" — use the canonical BBCH map.
-        Integer mapped = GrowthStageService.STAGE_TO_BBCH.get(vineyard.getGrowthStage());
-        if (mapped != null) return mapped;
-        // Fallback: extract leading digits in case the field ever stores a raw BBCH code
-        try {
-            String digits = vineyard.getGrowthStage().replaceAll("[^0-9]", "");
-            return digits.isEmpty() ? 0 : Integer.parseInt(digits);
-        } catch (NumberFormatException e) {
-            return 0;
-        }
+    /**
+     * Determine the BBCH code to use for spray logic.
+     * Vitimeteo alternates between leaf-development (BBCH 11-19) and inflorescence
+     * codes (BBCH 53+) in a single series. We take the maximum BBCH code ever stored
+     * so that once the vine has been observed at BBCH 53+ it stays in the
+     * susceptibility window. Falls back to the GDD-calculated stage when no pheno
+     * data is available.
+     */
+    private int resolvedBbch(Vineyard vineyard) {
+        int maxPhenoBbch = phenoRepository.findMaxBbchCode().orElse(0);
+        String stageCode = growthStageService.getCurrentGrowthStage().stageCode;
+        Integer gddBbch = GrowthStageService.STAGE_TO_BBCH.getOrDefault(stageCode, 0);
+        return Math.max(maxPhenoBbch, gddBbch);
     }
 
     /**
@@ -258,7 +278,7 @@ public class SprayRecommendationService {
         Map<String, String> factors = new LinkedHashMap<>();
 
         if (pero != null) {
-            String s = String.format("%s (%.1f%%)", pero.getRiskLevel(),
+            String s = String.format("%s (%.1f dh)", pero.getRiskLevel(),
                     pero.getRiskScore() != null ? pero.getRiskScore() : 0.0);
             if (pero.getNextSprayDeadline() != null) {
                 s += " — spray by " + pero.getNextSprayDeadline();
@@ -269,18 +289,25 @@ public class SprayRecommendationService {
             factors.put("peronospora_wbi", "No WBI data available");
         }
 
+        boolean wbiOidiumActive = oidium != null
+                && ("INFECTION_RISK".equals(oidium.getRiskLevel()) || "HIGH".equals(oidium.getRiskLevel()));
         if (bbch > 0) {
-            if (bbch < 53 || bbch > 79) {
+            boolean bbchActive = bbch >= 53 && bbch <= 79;
+            if (!bbchActive && !wbiOidiumActive) {
                 factors.put("oidium_status",
                         "Outside susceptibility window — BBCH " + bbch + " (" + bbchLabel(bbch) + ")");
             } else {
-                String s = "Active risk window — BBCH " + bbch + " (" + bbchLabel(bbch) + ")";
+                String src = bbchActive ? "BBCH " + bbch + " (" + bbchLabel(bbch) + ")" : "BBCH pre-window";
+                if (wbiOidiumActive && !bbchActive) src += " — WBI: " + oidium.getRiskLevel() + " (active leaf tissue risk)";
+                String s = "Active risk — " + src;
                 s += "; mean temp " + String.format("%.1f", meanTemp) + " °C → " + oidiumInterval + "d interval";
                 if (oidiumTarget != null) s += " → due " + oidiumTarget;
                 factors.put("oidium_status", s);
             }
         } else {
-            factors.put("oidium_status", "Growth stage unknown");
+            factors.put("oidium_status", wbiOidiumActive
+                    ? "WBI: " + oidium.getRiskLevel() + " (growth stage unknown — using WBI signal)"
+                    : "Growth stage unknown");
         }
 
         if (oidium != null) {
@@ -319,9 +346,11 @@ public class SprayRecommendationService {
     private String buildRiskSummary(WbiPrognosis pero, WbiPrognosis oidium, int bbch) {
         List<String> parts = new ArrayList<>();
         if (pero != null && "INFECTION_RISK".equals(pero.getRiskLevel()))
-            parts.add("Peronospora " + pero.getRiskScore() + "% infection risk");
-        if (oidium != null && "INFECTION_RISK".equals(oidium.getRiskLevel()) && bbch >= 53 && bbch <= 79)
-            parts.add("Oidium " + oidium.getRiskScore() + "% infection risk (active window)");
+            parts.add("Peronospora infection risk (%.1f dh)".formatted(pero.getRiskScore() != null ? pero.getRiskScore() : 0.0));
+        if (oidium != null && ("INFECTION_RISK".equals(oidium.getRiskLevel()) || "HIGH".equals(oidium.getRiskLevel()))) {
+            String window = (bbch >= 53 && bbch <= 79) ? "active window" : "WBI leaf tissue risk";
+            parts.add("Oidium " + oidium.getRiskScore() + "% infection risk (" + window + ")");
+        }
         return parts.isEmpty() ? "No active infection risk detected by WBI." : String.join("; ", parts) + ".";
     }
 

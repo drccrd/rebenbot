@@ -2,6 +2,7 @@ package com.rebenbot.repository;
 
 import com.rebenbot.model.VitimeteoPheno;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -16,4 +17,9 @@ public interface VitimeteoPhenoRepository extends JpaRepository<VitimeteoPheno, 
     List<VitimeteoPheno> findByPhenoDateBetweenOrderByPhenoDateDesc(LocalDate from, LocalDate to);
 
     Optional<VitimeteoPheno> findTopByOrderByPhenoDateDesc();
+
+    Optional<VitimeteoPheno> findTopByPhenoDateLessThanEqualOrderByPhenoDateDesc(LocalDate date);
+
+    @Query("SELECT MAX(p.bbchCode) FROM VitimeteoPheno p")
+    Optional<Integer> findMaxBbchCode();
 }

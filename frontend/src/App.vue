@@ -66,7 +66,7 @@
             <div class="rec-wbi-chip" v-if="sprayRecommendation.wbiPeronospora"
                  :class="sprayRecommendation.wbiPeronospora.riskLevel === 'INFECTION_RISK' ? 'wbi-risk-infection_risk' : 'wbi-risk-no_infection'">
               <strong>Peronospora</strong>
-              {{ sprayRecommendation.wbiPeronospora.riskLevel }} — {{ (sprayRecommendation.wbiPeronospora.riskScore || 0).toFixed(1) }}%
+              {{ sprayRecommendation.wbiPeronospora.riskLevel }} — {{ (sprayRecommendation.wbiPeronospora.riskScore || 0).toFixed(1) }} dh
               <span v-if="sprayRecommendation.wbiPeronospora.nextSprayDeadline">
                 · spray by {{ formatDate(sprayRecommendation.wbiPeronospora.nextSprayDeadline) }}
               </span>
@@ -75,7 +75,7 @@
             <div class="rec-wbi-chip" v-if="sprayRecommendation.wbiOidium"
                  :class="sprayRecommendation.wbiOidium.riskLevel === 'INFECTION_RISK' ? 'wbi-risk-infection_risk' : 'wbi-risk-no_infection'">
               <strong>Oidium</strong>
-              {{ sprayRecommendation.wbiOidium.riskLevel }} — {{ sprayRecommendation.wbiOidium.riskScore || 0 }}%
+              {{ sprayRecommendation.wbiOidium.riskLevel }} — {{ (sprayRecommendation.wbiOidium.riskScore || 0).toFixed(1) }} %·h
               <div class="wbi-forecast-date">WBI forecast: {{ formatDate(sprayRecommendation.wbiOidium.forecastDate) }}</div>
             </div>
           </div>
@@ -128,71 +128,139 @@
           Vine Growth Stage
         </h2>
         <div v-show="!collapsedSections.growthStage" class="growth-stage-card">
-          <!-- Parallel BBCH tracks -->
-          <div class="stage-tracks">
-            <div class="stage-track">
-              <div class="stage-track-label">🌿 Shoot / Leaf</div>
-              <div class="stage-track-value">{{ growthStage.shootStageName }}</div>
-              <div class="stage-track-bbch" v-if="growthStage.shootBbch > 0">BBCH {{ growthStage.shootBbch }}</div>
+
+          <!-- Primary: VitiMeteo observed today -->
+          <div v-if="latestPheno" class="gs-vitimeteo-block">
+            <div class="gs-source-line">
+              <span class="gs-source-badge">VitiMeteo Freiburg</span>
+              <span class="gs-source-date">as of {{ formatWbiDate(latestPheno.phenoDate) }}</span>
             </div>
-            <div class="stage-track" :class="{ 'stage-track-active': growthStage.berryBbch > 0 }">
-              <div class="stage-track-label">🍇 Berry / Inflorescence</div>
-              <div class="stage-track-value">{{ growthStage.berryStageName }}</div>
-              <div class="stage-track-bbch" v-if="growthStage.berryBbch > 0">BBCH {{ growthStage.berryBbch }}</div>
-              <div class="stage-track-oidium" v-if="growthStage.berryBbch >= 53 && growthStage.berryBbch <= 79">
-                ⚠️ Oidium susceptibility window active
+            <!-- Current shoot stage (BBCH 11-19 = leaf count) -->
+            <div class="gs-primary-stage">
+              <span class="gs-bbch-badge">BBCH {{ latestPheno.bbchCode }}</span>
+              <span class="gs-stage-label">{{ bbchLabel(latestPheno.bbchCode) }}</span>
+            </div>
+            <!-- Leaf metrics -->
+            <div class="gs-metrics-row">
+              <span v-if="latestPheno.leafCount !== null" class="gs-metric">
+                🍃 {{ latestPheno.leafCount.toFixed(0) }} leaves
+              </span>
+              <span v-if="latestPheno.leafAreaCm2 !== null" class="gs-metric"
+                    title="Total leaf area per shoot including growing and mature leaves">
+                📐 {{ latestPheno.leafAreaCm2.toFixed(0) }} cm²
+              </span>
+              <span v-if="latestPheno.huglinIndex !== null" class="gs-metric"
+                    title="Huglin heliothermique index — cumulative vine heat from April 1">
+                🌡 Huglin {{ latestPheno.huglinIndex.toFixed(0) }}°
+              </span>
+            </div>
+          </div>
+
+          <!-- Inflorescence / susceptibility status -->
+          <div class="gs-infl-block" :class="effectiveBbch >= 53 ? 'gs-infl-active' : 'gs-infl-inactive'">
+            <template v-if="effectiveBbch >= 53">
+              <span class="gs-infl-icon">🍇</span>
+              <div>
+                <div class="gs-infl-title">Inflorescence reached — peak BBCH {{ effectiveBbch }}</div>
+                <div v-if="effectiveBbch <= 79" class="gs-oidium-warning">
+                  ⚠️ Oidium susceptibility window active (BBCH 53–79)
+                </div>
+                <div v-else class="gs-oidium-clear">
+                  ✓ Outside oidium susceptibility window
+                </div>
               </div>
+            </template>
+            <template v-else>
+              <span class="gs-infl-icon">🌿</span>
+              <div class="gs-infl-title muted">Inflorescence not yet observed (below BBCH 53)</div>
+            </template>
+          </div>
+
+          <!-- GDD reference -->
+          <div class="gs-gdd-row" :title="'Growing Degree Days accumulated from April 1 (base 10°C). Used as a local cross-check alongside VitiMeteo.'">
+            📊 Local GDD estimate: {{ growthStage.currentGdd.toFixed(0) }}° → {{ growthStage.shootStageName.replace(/^BBCH \d+ — /, '') }}
+          </div>
+
+        </div>
+      </section>
+
+      <!-- WBI Freiburg Disease Prognosis -->
+      <section class="wbi-section" v-if="wbiPrognosis.peronospora || wbiPrognosis.oidium">
+        <h2 @click="toggleSection('wbiPrognosis')" class="section-header" :class="{ collapsed: collapsedSections.wbiPrognosis }">
+          <span class="section-toggle">{{ collapsedSections.wbiPrognosis ? '▶' : '▼' }}</span>
+          📊 WBI Freiburg Disease Prognosis
+        </h2>
+        <div v-show="!collapsedSections.wbiPrognosis" class="wbi-grid">
+          <!-- Peronospora WBI Prognosis -->
+          <div v-if="wbiPrognosis.peronospora" class="wbi-card wbi-prognosis-card">
+            <div class="wbi-header">
+              <h3>🍂 Peronospora (Downy Mildew)</h3>
+              <span class="wbi-badge" :class="'wbi-risk-' + (wbiPrognosis.peronospora.riskLevel || '').toLowerCase()">
+                {{ wbiPrognosis.peronospora.riskLevel || 'N/A' }}
+              </span>
+            </div>
+            <div class="wbi-details">
+              <p v-if="wbiPrognosis.peronospora.leafWetnessHours || wbiPrognosis.peronospora.riskScore" class="wbi-row">
+                <strong>Leaf Wetness:</strong>
+                {{ (wbiPrognosis.peronospora.leafWetnessHours || 0).toFixed(1) }}h /
+                {{ (wbiPrognosis.peronospora.riskScore || 0).toFixed(1) }}°h
+              </p>
+              <p v-if="wbiPrognosis.peronospora.infectionEventCount !== null && wbiPrognosis.peronospora.infectionEventCount !== undefined" class="wbi-row">
+                <strong>Infections:</strong>
+                {{ wbiPrognosis.peronospora.infectionEventCount }} tracked
+                ({{ wbiPrognosis.peronospora.activeIncubationEvents || 0 }} active) ·
+                {{ wbiPrognosis.peronospora.soilInfectionCount || 0 }} soil ·
+                {{ wbiPrognosis.peronospora.sporulationCount || 0 }} sporulation{{ wbiPrognosis.peronospora.sporulationCount !== 1 ? 's' : '' }}
+              </p>
+              <!-- Per-event incubation progress bars -->
+              <div v-if="incubationEvents.length > 0" class="wbi-incubation-bars">
+                <div v-for="evt in incubationEvents" :key="evt.id" class="incub-bar-row">
+                  <span class="incub-bar-label">{{ formatDateTime(evt.infectionDatetime) }}</span>
+                  <span v-if="isFutureEvent(evt.infectionDatetime)" class="incub-forecast-badge">forecast</span>
+                  <div class="incub-bar-track">
+                    <div class="incub-bar-fill"
+                         :style="{ width: Math.min(evt.incubationPctLatest || 0, 100) + '%' }"
+                         :class="{ 'incub-bar-complete': (evt.incubationPctLatest || 0) >= 100 }"></div>
+                  </div>
+                  <span class="incub-bar-pct">{{ (evt.incubationPctLatest || 0).toFixed(0) }}%</span>
+                </div>
+              </div>
+              <p v-if="wbiPrognosis.peronospora.nextSprayDeadline" class="wbi-row wbi-spray-deadline">
+                <strong>⚠ Spray by:</strong> {{ formatWbiDate(wbiPrognosis.peronospora.nextSprayDeadline) }}
+              </p>
+              <p v-if="wbiPrognosis.peronospora.lastSporulationDate" class="wbi-row">
+                <strong>Incubation ends (est.):</strong> {{ formatWbiDate(wbiPrognosis.peronospora.lastSporulationDate) }}
+              </p>
+              <p class="wbi-forecast-date">
+                <strong>Forecast Date:</strong> {{ formatWbiDate(wbiPrognosis.peronospora.forecastDate) }}
+              </p>
             </div>
           </div>
 
-          <div class="stage-display">
-            <div class="stage-icon">🌱</div>
-            <div class="stage-info">
-              <p class="stage-gdd" :title="'Growing Degree Days: cumulative heat units since April 1st (base temp 10°C)'">
-                Accumulated GDD: {{ growthStage.currentGdd.toFixed(1) }}°
+          <!-- Oidium WBI Prognosis -->
+          <div v-if="wbiPrognosis.oidium" class="wbi-card wbi-prognosis-card">
+            <div class="wbi-header">
+              <h3>🌬️ Oidium (Powdery Mildew)</h3>
+              <span class="wbi-badge" :class="'wbi-risk-' + (wbiPrognosis.oidium.riskLevel || '').toLowerCase()">
+                {{ wbiPrognosis.oidium.riskLevel || 'N/A' }}
+              </span>
+            </div>
+            <div class="wbi-details">
+              <p class="wbi-score">
+                <strong>Cumulative Infection Index:</strong> {{ (wbiPrognosis.oidium.riskScore || 0).toFixed(1) }} %·h
               </p>
-              <p class="stage-source" v-if="growthStage.isManualOverride" style="color: #ff9800;">
-                ✏️ Manually set
+              <p v-if="wbiPrognosis.oidium.ontogeneticIndex !== null && wbiPrognosis.oidium.ontogeneticIndex !== undefined" class="wbi-row"
+                 title="Vine tissue susceptibility factor (0–1). 1.0 = fully susceptible at current growth stage.">
+                <strong>Tissue Susceptibility:</strong> {{ (wbiPrognosis.oidium.ontogeneticIndex || 0).toFixed(2) }}
               </p>
-              <p class="stage-source" v-else style="color: #4caf50;">
-                📊 Calculated from weather data
+              <p v-if="wbiPrognosis.oidium.oidiumDailyValue !== null && wbiPrognosis.oidium.oidiumDailyValue !== undefined" class="wbi-row"
+                 title="Daily infection contribution to the cumulative index (previous day, available end-of-day).">
+                <strong>Yesterday's contribution:</strong> {{ (wbiPrognosis.oidium.oidiumDailyValue || 0).toFixed(3) }} %·h
+              </p>
+              <p class="wbi-forecast-date">
+                <strong>Forecast Date:</strong> {{ formatWbiDate(wbiPrognosis.oidium.forecastDate) }}
               </p>
             </div>
-          </div>
-
-          <!-- VitiMeteo phenology data -->
-          <div v-if="latestPheno" class="stage-pheno-row">
-            <span class="pheno-label">🌿 VitiMeteo:</span>
-            <span class="pheno-item" v-if="latestPheno.bbchCode !== null">BBCH {{ latestPheno.bbchCode.toFixed(0) }}</span>
-            <span class="pheno-item" v-if="latestPheno.huglinIndex !== null">Huglin {{ latestPheno.huglinIndex.toFixed(0) }}</span>
-            <span class="pheno-item" v-if="latestPheno.leafCount !== null">{{ latestPheno.leafCount.toFixed(0) }} leaves</span>
-            <span class="pheno-source">({{ formatWbiDate(latestPheno.phenoDate) }})</span>
-          </div>
-          
-          <div class="stage-controls">
-            <div class="control-group">
-              <label for="stage-select">Override with manual stage:</label>
-              <select id="stage-select" v-model="selectedStageOverride" class="stage-select">
-                <option value="">Use automatic calculation</option>
-                <option v-for="(description, code) in availableStages" :key="code" :value="code">
-                  {{ description }}
-                </option>
-              </select>
-            </div>
-            <button 
-              @click="setManualGrowthStage" 
-              :disabled="!selectedStageOverride || settingStage"
-              class="btn-set-stage"
-            >
-              {{ settingStage ? 'Setting...' : 'Set Manual Stage' }}
-            </button>
-            <button 
-              @click="useAutomaticGrowthStage"
-              :disabled="!growthStage.isManualOverride || settingStage"
-              class="btn-automatic"
-            >
-              {{ settingStage ? 'Updating...' : 'Use Automatic' }}
-            </button>
           </div>
         </div>
       </section>
@@ -226,97 +294,6 @@
         </div>
       </section>
 
-      <!-- WBI Freiburg Disease Prognosis -->
-      <section class="wbi-section" v-if="wbiPrognosis.peronospora || wbiPrognosis.oidium">
-        <h2 @click="toggleSection('wbiPrognosis')" class="section-header" :class="{ collapsed: collapsedSections.wbiPrognosis }">
-          <span class="section-toggle">{{ collapsedSections.wbiPrognosis ? '▶' : '▼' }}</span>
-          📊 WBI Freiburg Disease Prognosis
-        </h2>
-        <div v-show="!collapsedSections.wbiPrognosis" class="wbi-grid">
-          <!-- Peronospora WBI Prognosis -->
-          <div v-if="wbiPrognosis.peronospora" class="wbi-card wbi-prognosis-card">
-            <div class="wbi-header">
-              <h3>🍂 Peronospora (Downy Mildew)</h3>
-              <span class="wbi-badge" :class="'wbi-risk-' + (wbiPrognosis.peronospora.riskLevel || '').toLowerCase()">
-                {{ wbiPrognosis.peronospora.riskLevel || 'N/A' }}
-              </span>
-            </div>
-            <div class="wbi-score-bar">
-              <div class="wbi-bar" :style="{ width: Math.min(wbiPrognosis.peronospora.riskScore || 0, 100) + '%' }"></div>
-            </div>
-            <div class="wbi-details">
-              <p class="wbi-score">
-                <strong>Infection Risk Index:</strong> {{ (wbiPrognosis.peronospora.riskScore || 0).toFixed(1) }}
-              </p>
-              <p v-if="wbiPrognosis.peronospora.leafWetnessHours" class="wbi-row">
-                <strong>Leaf Wetness:</strong>
-                {{ wbiPrognosis.peronospora.leafWetnessHours.toFixed(1) }}h /
-                {{ (wbiPrognosis.peronospora.leafWetnessDegreeHours || 0).toFixed(1) }}°h
-              </p>
-              <p v-if="wbiPrognosis.peronospora.infectionEventCount !== null && wbiPrognosis.peronospora.infectionEventCount !== undefined" class="wbi-row">
-                <strong>Events:</strong>
-                {{ wbiPrognosis.peronospora.infectionEventCount }} infection{{ wbiPrognosis.peronospora.infectionEventCount !== 1 ? 's' : '' }} ·
-                {{ wbiPrognosis.peronospora.soilInfectionCount || 0 }} soil ·
-                {{ wbiPrognosis.peronospora.sporulationCount || 0 }} sporulation{{ wbiPrognosis.peronospora.sporulationCount !== 1 ? 's' : '' }}
-              </p>
-              <p v-if="wbiPrognosis.peronospora.activeIncubationEvents" class="wbi-row wbi-incubation-count">
-                <strong>Active incubations:</strong> {{ wbiPrognosis.peronospora.activeIncubationEvents }}
-              </p>
-              <!-- Per-event incubation progress bars -->
-              <div v-if="incubationEvents.length > 0" class="wbi-incubation-bars">
-                <div v-for="evt in incubationEvents" :key="evt.id" class="incub-bar-row">
-                  <span class="incub-bar-label">{{ formatDateTime(evt.infectionDatetime) }}</span>
-                  <div class="incub-bar-track">
-                    <div class="incub-bar-fill"
-                         :style="{ width: Math.min(evt.incubationPctLatest || 0, 100) + '%' }"
-                         :class="{ 'incub-bar-complete': (evt.incubationPctLatest || 0) >= 100 }"></div>
-                  </div>
-                  <span class="incub-bar-pct">{{ (evt.incubationPctLatest || 0).toFixed(0) }}%</span>
-                </div>
-              </div>
-              <p v-if="wbiPrognosis.peronospora.nextSprayDeadline" class="wbi-row wbi-spray-deadline">
-                <strong>⚠ Spray by:</strong> {{ formatWbiDate(wbiPrognosis.peronospora.nextSprayDeadline) }}
-              </p>
-              <p v-if="wbiPrognosis.peronospora.lastSporulationDate" class="wbi-row">
-                <strong>Last sporulation:</strong> {{ formatWbiDate(wbiPrognosis.peronospora.lastSporulationDate) }}
-              </p>
-              <p class="wbi-forecast-date">
-                <strong>Forecast Date:</strong> {{ formatWbiDate(wbiPrognosis.peronospora.forecastDate) }}
-              </p>
-            </div>
-          </div>
-
-          <!-- Oidium WBI Prognosis -->
-          <div v-if="wbiPrognosis.oidium" class="wbi-card wbi-prognosis-card">
-            <div class="wbi-header">
-              <h3>🌬️ Oidium (Powdery Mildew)</h3>
-              <span class="wbi-badge" :class="'wbi-risk-' + (wbiPrognosis.oidium.riskLevel || '').toLowerCase()">
-                {{ wbiPrognosis.oidium.riskLevel || 'N/A' }}
-              </span>
-            </div>
-            <div class="wbi-score-bar">
-              <div class="wbi-bar" :style="{ width: Math.min(wbiPrognosis.oidium.riskScore || 0, 100) + '%' }"></div>
-            </div>
-            <div class="wbi-details">
-              <p class="wbi-score">
-                <strong>Risk Score:</strong> {{ (wbiPrognosis.oidium.riskScore || 0).toFixed(1) }}
-              </p>
-              <p v-if="wbiPrognosis.oidium.oidiumIndex !== null && wbiPrognosis.oidium.oidiumIndex !== undefined" class="wbi-row">
-                <strong>Oidium Index:</strong> {{ (wbiPrognosis.oidium.oidiumIndex || 0).toFixed(1) }}
-              </p>
-              <p v-if="wbiPrognosis.oidium.ontogeneticIndex !== null && wbiPrognosis.oidium.ontogeneticIndex !== undefined" class="wbi-row">
-                <strong>Ontogenetic Index:</strong> {{ (wbiPrognosis.oidium.ontogeneticIndex || 0).toFixed(1) }}
-              </p>
-              <p v-if="wbiPrognosis.oidium.oidiumDailyValue !== null && wbiPrognosis.oidium.oidiumDailyValue !== undefined" class="wbi-row">
-                <strong>Daily Value:</strong> {{ (wbiPrognosis.oidium.oidiumDailyValue || 0).toFixed(1) }}
-              </p>
-              <p class="wbi-forecast-date">
-                <strong>Forecast Date:</strong> {{ formatWbiDate(wbiPrognosis.oidium.forecastDate) }}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
 
       <!-- Rainfall & Spray Timing -->
       <section class="spray-timing-section" v-if="rainfallSummary || sprayWindow">
@@ -923,16 +900,7 @@
               <div class="calc-input-group">
                 <label>Growth Stage (BBCH):</label>
                 <select v-model.number="calc.bbch">
-                  <option value="0">BBCH 00-09 (Pre-budburst)</option>
-                  <option value="10">BBCH 10-19 (Budburst)</option>
-                  <option value="25">BBCH 25-29 (5-9 leaves)</option>
-                  <option value="35">BBCH 35-39 (Visible flower clusters)</option>
-                  <option value="45">BBCH 45-49 (Bloom)</option>
-                  <option value="55">BBCH 55-59 (Fruitset)</option>
-                  <option value="65">BBCH 65-69 (Berries pea-sized)</option>
-                  <option value="75">BBCH 75-79 (Véraison beginning)</option>
-                  <option value="81">BBCH 80-81 (Post-véraison - 20% reduction)</option>
-                  <option value="89">BBCH 89 (Harvest)</option>
+                  <option v-for="s in bbchStages" :key="s.value" :value="s.value">BBCH {{ s.range }} ({{ s.label }})</option>
                 </select>
               </div>
             </div>
@@ -1135,10 +1103,26 @@ const OIDIUM_SLOTS = [
   }
 ]
 
+// Canonical BBCH growth stage definitions — used by the spray calculator dropdown
+// and bbchLabel() to map any BBCH code to a human-readable description.
+const BBCH_STAGES = [
+  { value: 0,  range: '00–09', label: 'Pre-budburst' },
+  { value: 10, range: '10–19', label: 'Budburst' },
+  { value: 25, range: '25–29', label: '5–9 leaves' },
+  { value: 35, range: '35–39', label: 'Visible flower clusters' },
+  { value: 45, range: '45–49', label: 'Bloom' },
+  { value: 55, range: '55–59', label: 'Fruitset' },
+  { value: 65, range: '65–69', label: 'Berries pea-sized' },
+  { value: 75, range: '75–79', label: 'Véraison beginning' },
+  { value: 81, range: '80–85', label: 'Post-véraison' },
+  { value: 89, range: '89',    label: 'Harvest' },
+]
+
 export default {
   name: 'App',
   data() {
     return {
+      bbchStages: BBCH_STAGES,
       vineyard: null,
       currentWeather: null,
       risks: [],
@@ -1152,9 +1136,6 @@ export default {
       sprayWindow: null,
       sprayRecommendation: null,
       growthStage: null,
-      availableStages: {},
-      selectedStageOverride: '',
-      settingStage: false,
       recentSprays: [],
       fungicides: [],
       diseases: [],
@@ -1208,7 +1189,7 @@ export default {
         weather: false,
         rainfallTiming: false,
         growthStage: false,
-        riskAssessment: false,
+        riskAssessment: true,
         wbiPrognosis: false,
         sprayLog: false,
         seasonPlanner: false,
@@ -1221,6 +1202,14 @@ export default {
     }
   },
   computed: {
+    /** Best-known BBCH: max of GDD-based berry stage and vitimeteo max-ever BBCH.
+     *  Vitimeteo alternates between leaf (11-19) and inflorescence (53+) codes;
+     *  once a ≥53 code has been seen the vine stays in the susceptibility window. */
+    effectiveBbch() {
+      const gddBerry = this.growthStage ? (this.growthStage.berryBbch || 0) : 0
+      const phenoMax = this.latestPheno ? (this.latestPheno.maxBbchCode || 0) : 0
+      return Math.max(gddBerry, phenoMax)
+    },
     peronDiseaseId () {
       const d = this.diseases.find(d => d.commonName && d.commonName.toLowerCase().includes('peronospora'))
       return d ? d.id : null
@@ -1427,7 +1416,6 @@ export default {
           this.fetchRainfallSummary(),
           this.fetchSprayWindow(),
           this.fetchGrowthStage(),
-          this.fetchAvailableStages(),
           this.fetchFungicides(),
           this.fetchDiseases(),
           this.fetchRecentSprays()
@@ -1597,49 +1585,6 @@ export default {
         console.warn('Failed to fetch growth stage:', err)
       }
     },
-    async fetchAvailableStages() {
-      try {
-        const response = await axios.get('/api/v1/growth-stage/available-stages')
-        if (response.data) {
-          this.availableStages = response.data
-        }
-      } catch (err) {
-        console.warn('Failed to fetch available stages:', err)
-      }
-    },
-    async setManualGrowthStage() {
-      if (!this.selectedStageOverride) return
-      this.settingStage = true
-      try {
-        const response = await axios.post(
-          `/api/v1/growth-stage/set-manual?stageName=${this.selectedStageOverride}`
-        )
-        if (response.data) {
-          this.growthStage = response.data
-          this.selectedStageOverride = ''
-        }
-      } catch (err) {
-        console.error('Failed to set manual growth stage:', err)
-        this.error = `Failed to set growth stage: ${err.message}`
-      } finally {
-        this.settingStage = false
-      }
-    },
-    async useAutomaticGrowthStage() {
-      this.settingStage = true
-      try {
-        const response = await axios.post('/api/v1/growth-stage/use-automatic')
-        if (response.data) {
-          this.growthStage = response.data
-          this.selectedStageOverride = ''
-        }
-      } catch (err) {
-        console.error('Failed to switch to automatic growth stage:', err)
-        this.error = `Failed to update growth stage: ${err.message}`
-      } finally {
-        this.settingStage = false
-      }
-    },
     toggleSection(sectionName) {
       this.collapsedSections[sectionName] = !this.collapsedSections[sectionName]
       if (sectionName === 'dataSync' && !this.collapsedSections.dataSync) {
@@ -1678,6 +1623,11 @@ export default {
       }
       return 'Check thresholds'
     },
+    isFutureEvent(datetimeArr) {
+      if (!datetimeArr || !Array.isArray(datetimeArr)) return false
+      const [year, month, day, hour = 0, minute = 0, second = 0] = datetimeArr
+      return new Date(year, month - 1, day, hour, minute, second) > new Date()
+    },
     formatDateTime(isoString) {
       if (!isoString) return 'N/A'
       try {
@@ -1685,7 +1635,8 @@ export default {
         let date
         if (Array.isArray(isoString)) {
           // If it's an array [year, month, day, hour, minute, second, nanos]
-          const [year, month, day, hour, minute, second] = isoString
+          // Jackson omits trailing zeros, so arrays may be 5 elements when seconds = 0
+          const [year, month, day, hour = 0, minute = 0, second = 0] = isoString
           date = new Date(year, month - 1, day, hour, minute, second)
         } else {
           // If it's an ISO string
@@ -1706,6 +1657,19 @@ export default {
         console.warn('Error parsing date:', isoString, e)
         return 'Invalid date'
       }
+    },
+    /** Maps a BBCH numeric code to a short human-readable description.
+     *  Fine-grained overrides handle exact vitimeteo BBCH-Code series values;
+     *  everything else falls back to the canonical BBCH_STAGES coarse lookup. */
+    bbchLabel(code) {
+      if (!code && code !== 0) return ''
+      if (code >= 11 && code <= 19) return `${code - 10} lea${code - 10 === 1 ? 'f' : 'ves'} unfolded`
+      if (code === 53) return 'Inflorescence clearly visible'
+      if (code === 55) return 'Individual flowers visible'
+      if (code === 57) return 'Flowers separating'
+      // Coarse fallback: highest BBCH_STAGES entry whose value ≤ code
+      const stage = [...BBCH_STAGES].reverse().find(s => s.value <= code)
+      return stage ? stage.label : `BBCH ${code}`
     },
     formatWbiDate(dateArray) {
       if (!dateArray) return 'N/A'
@@ -2482,12 +2446,27 @@ h2 {
 }
 
 .incub-bar-label {
-  width: 90px;
+  width: 130px;
   flex-shrink: 0;
   color: #666;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.incub-forecast-badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #e65100;
+  background: #fff3e0;
+  border: 1px solid #ffb74d;
+  border-radius: 3px;
+  padding: 0 3px;
+  margin-left: 3px;
+  vertical-align: middle;
 }
 
 .incub-bar-track {
@@ -2514,39 +2493,6 @@ h2 {
   text-align: right;
   color: #555;
   font-weight: 600;
-}
-
-.stage-pheno-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.8rem;
-  padding: 0.5rem 0.8rem;
-  background: #f0f7f0;
-  border-radius: 6px;
-  font-size: 0.88rem;
-}
-
-.pheno-label {
-  font-weight: 600;
-  color: #388e3c;
-  flex-shrink: 0;
-}
-
-.pheno-item {
-  background: #c8e6c9;
-  color: #1b5e20;
-  padding: 0.2rem 0.5rem;
-  border-radius: 12px;
-  font-weight: 600;
-  font-size: 0.85rem;
-}
-
-.pheno-source {
-  color: #888;
-  font-size: 0.8rem;
-  margin-left: auto;
 }
 
 .wbi-forecast-date {
@@ -2660,178 +2606,154 @@ h2 {
 
 /* Growth Stage Styles */
 .growth-stage-section {
-  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+  background: white;
   border-radius: 12px;
-  padding: 1.5rem;
+  padding: 20px;
   margin-bottom: 1.5rem;
-  color: white;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  border-top: 3px solid #4caf50;
 }
 
 .growth-stage-section h2 {
-  margin: 0 0 1.5rem 0;
+  margin: 0 0 1.25rem 0;
   font-size: 1.3rem;
+  color: #1a1a1a;
 }
 
 .growth-stage-card {
   display: flex;
-  gap: 2rem;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
-.stage-tracks {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.stage-track {
-  flex: 1;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+/* VitiMeteo primary block */
+.gs-vitimeteo-block {
+  background: #f1f8e9;
+  border: 1px solid #c5e1a5;
   border-radius: 8px;
-  padding: 1rem;
-  opacity: 0.7;
+  padding: 1rem 1.2rem;
 }
 
-.stage-track.stage-track-active {
-  background: rgba(76, 175, 80, 0.2);
-  border-color: rgba(76, 175, 80, 0.5);
-  opacity: 1;
+.gs-source-line {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
 }
 
-.stage-track-label {
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  opacity: 0.75;
-  margin-bottom: 0.35rem;
-}
-
-.stage-track-value {
-  font-size: 0.95rem;
-  font-weight: 500;
-  margin-bottom: 0.25rem;
-}
-
-.stage-track-bbch {
-  font-size: 0.85rem;
+.gs-source-badge {
+  background: #4caf50;
+  color: white;
+  border-radius: 4px;
+  font-size: 0.7rem;
   font-weight: 700;
-  opacity: 0.85;
+  letter-spacing: 0.05em;
+  padding: 0.15rem 0.5rem;
+  text-transform: uppercase;
 }
 
-.stage-track-oidium {
-  margin-top: 0.4rem;
+.gs-source-date {
   font-size: 0.8rem;
-  color: #ffcc80;
-  font-weight: 600;
+  color: #555;
 }
 
-.stage-display {
+.gs-primary-stage {
   display: flex;
-  gap: 1.5rem;
-  flex: 1;
-  background: rgba(255, 255, 255, 0.15);
-  padding: 1.5rem;
-  border-radius: 8px;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.7rem;
 }
 
-.stage-icon {
-  font-size: 3rem;
-  line-height: 1;
+.gs-bbch-badge {
+  background: #2e7d32;
+  color: white;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 0.25rem 0.75rem;
+  white-space: nowrap;
 }
 
-.stage-info {
-  flex: 1;
+.gs-stage-label {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #1a1a1a;
 }
 
-.stage-code {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-}
-
-.stage-gdd {
-  margin: 0 0 0.5rem 0;
-  font-size: 0.95rem;
-  opacity: 0.95;
-  cursor: help;
-  border-bottom: 1px dotted rgba(255, 255, 255, 0.3);
-}
-
-.stage-source {
-  margin: 0;
-  font-size: 0.9rem;
-  opacity: 0.9;
-}
-
-.stage-controls {
-  flex: 1;
+.gs-metrics-row {
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  background: rgba(255, 255, 255, 0.15);
-  padding: 1.5rem;
-  border-radius: 8px;
-}
-
-.control-group {
-  display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
-.control-group label {
-  font-size: 0.9rem;
+.gs-metric {
+  background: white;
+  border: 1px solid #c5e1a5;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  color: #2e7d32;
+  font-weight: 500;
+  padding: 0.2rem 0.75rem;
+  white-space: nowrap;
+}
+
+/* Inflorescence / susceptibility status */
+.gs-infl-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border-radius: 8px;
+  padding: 0.8rem 1rem;
+}
+
+.gs-infl-active {
+  background: #e8f5e9;
+  border: 1px solid #a5d6a7;
+}
+
+.gs-infl-inactive {
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+}
+
+.gs-infl-icon {
+  font-size: 1.4rem;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+.gs-infl-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.gs-infl-title.muted {
+  font-weight: 400;
+  color: #777;
+}
+
+.gs-oidium-warning {
+  margin-top: 0.3rem;
+  font-size: 0.85rem;
+  color: #e65100;
+  font-weight: 600;
+}
+
+.gs-oidium-clear {
+  margin-top: 0.3rem;
+  font-size: 0.85rem;
+  color: #2e7d32;
   font-weight: 500;
 }
 
-.stage-select {
-  padding: 0.7rem;
-  border: none;
-  border-radius: 4px;
-  background: white;
-  color: #333;
-  font-size: 0.95rem;
-  cursor: pointer;
-}
-
-.btn-set-stage,
-.btn-automatic {
-  padding: 0.7rem 1rem;
-  border: none;
-  border-radius: 4px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 0.95rem;
-}
-
-.btn-set-stage {
-  background: #ff9800;
-  color: white;
-}
-
-.btn-set-stage:hover:not(:disabled) {
-  background: #f57c00;
-  transform: translateY(-2px);
-}
-
-.btn-automatic {
-  background: rgba(255, 255, 255, 0.9);
-  color: #4caf50;
-}
-
-.btn-automatic:hover:not(:disabled) {
-  background: white;
-  transform: translateY(-2px);
-}
-
-.btn-set-stage:disabled,
-.btn-automatic:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+/* Local GDD reference line */
+.gs-gdd-row {
+  font-size: 0.8rem;
+  color: #888;
+  padding: 0.3rem 0.2rem;
+  cursor: help;
+  border-top: 1px solid #e0e0e0;
 }
 
 .error-message {

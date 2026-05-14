@@ -1,7 +1,6 @@
 package com.rebenbot.controller;
 
 import com.rebenbot.model.PeronosporaInfectionEvent;
-import com.rebenbot.model.VitimeteoPheno;
 import com.rebenbot.model.WbiPrognosis;
 import com.rebenbot.service.WbiPrognosisService;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -10,7 +9,9 @@ import org.springframework.web.bind.annotation.*;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/v1/wbi")
@@ -83,7 +84,17 @@ public class WbiPrognosisController {
     @GetMapping("/pheno/latest")
     public ResponseEntity<?> getLatestPheno() {
         return wbiPrognosisService.getLatestPheno()
-                .map(ResponseEntity::ok)
+                .map(pheno -> {
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("id", pheno.getId());
+                    result.put("phenoDate", pheno.getPhenoDate());
+                    result.put("bbchCode", pheno.getBbchCode());
+                    result.put("huglinIndex", pheno.getHuglinIndex());
+                    result.put("leafCount", pheno.getLeafCount());
+                    result.put("leafAreaCm2", pheno.getLeafAreaCm2());
+                    result.put("maxBbchCode", wbiPrognosisService.getMaxBbchCode());
+                    return ResponseEntity.ok(result);
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 }

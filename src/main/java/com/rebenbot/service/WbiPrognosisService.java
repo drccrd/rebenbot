@@ -53,6 +53,8 @@ public class WbiPrognosisService {
             "https://www.vitimeteo-bw.de/vitimeteo/station/risk_data.json";
     private static final String EXPERT_API_URL =
             "https://www.vitimeteo-bw.de/vitimeteo/station/expert_data.json";
+    private static final String INDEX_URL =
+            "https://www.vitimeteo-bw.de/vitimeteo/default/index";
     private static final int STATION_ID = 99;
     private static final int OIDIUM_PROGRAM_ID = 8;
     private static final int PERONOSPORA_PROGRAM_ID = 7;
@@ -82,6 +84,7 @@ public class WbiPrognosisService {
         log.info("Starting scheduled peronospora prognosis refresh from vitimeteo JSON");
         LocalDate today = LocalDate.now();
         try {
+            warmUpSession();
             fetchAndStore("peronospora", PERONOSPORA_PROGRAM_ID, today);
             fetchAndStoreExpertData(today);
             log.info("Peronospora prognosis refresh completed");
@@ -94,6 +97,7 @@ public class WbiPrognosisService {
     public void refreshOidiumPrognosis() {
         log.info("Starting scheduled oidium prognosis refresh from vitimeteo JSON");
         try {
+            warmUpSession();
             fetchAndStore("oidium", OIDIUM_PROGRAM_ID, LocalDate.now());
             log.info("Oidium prognosis refresh completed");
         } catch (Exception e) {
@@ -105,10 +109,27 @@ public class WbiPrognosisService {
     // HTTP helpers
     // -----------------------------------------------------------------------
 
+    /**
+     * Fetch the vitimeteo index page to obtain a session cookie.
+     * The CookieManager in HttpClientConfig stores the Set-Cookie header automatically,
+     * so subsequent JSON API calls will include the session_id_vitimeteo cookie.
+     */
+    private void warmUpSession() {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("User-Agent", USER_AGENT);
+            headers.set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+            restTemplate.exchange(INDEX_URL, HttpMethod.GET, new HttpEntity<>(headers), String.class);
+            log.debug("vitimeteo session warm-up completed");
+        } catch (Exception e) {
+            log.warn("vitimeteo session warm-up failed (will still attempt API calls): {}", e.getMessage());
+        }
+    }
+
     private JsonNode fetchJson(String url) throws Exception {
         HttpHeaders headers = new HttpHeaders();
         headers.set("User-Agent", USER_AGENT);
-        headers.set("Accept", "*/*");
+        headers.set("Accept", "application/json, text/javascript, */*; q=0.01");
         headers.set("Referer", "https://www.vitimeteo-bw.de/vitimeteo/default/index");
         headers.set("X-Requested-With", "XMLHttpRequest");
 
@@ -149,24 +170,32 @@ public class WbiPrognosisService {
     // -----------------------------------------------------------------------
 
     private void parseAndStore(JsonNode root, String disease, LocalDate today) {
-        JsonNode modelChart = root.path("chartObj").path("model_results").path("chart");
-        if (modelChart.isMissingNode() || !modelChart.isArray() || modelChart.isEmpty()) {
-            log.warn("No model_results.chart in vitimeteo {} response", disease);
-            return;
-        }
-
         String todayStr = today.format(DATE_FMT);
-        Map<String, JsonNode> byName = collectSeriesByName(modelChart);
-
-        String latestColor = latestStringValue(byName.get("InfRiskColor"), todayStr);
-        String riskLevel = colorToRiskLevel(latestColor);
-
+        String latestColor;
         double riskScore;
+        Map<String, JsonNode> byName;
+
         if ("peronospora".equals(disease)) {
+            JsonNode modelChart = root.path("chartObj").path("model_results").path("chart");
+            if (modelChart.isMissingNode() || !modelChart.isArray() || modelChart.isEmpty()) {
+                log.warn("No model_results.chart in vitimeteo peronospora response");
+                return;
+            }
+            byName = collectSeriesByName(modelChart);
+            latestColor = latestStringValue(byName.get("InfRiskColor"), todayStr);
             riskScore = latestDoubleValue(byName.get("InfektionsstärkeIndex"), todayStr);
         } else {
+            JsonNode modelChart = root.path("chartObj").path("model_results").path("chart");
+            if (modelChart.isMissingNode() || !modelChart.isArray() || modelChart.isEmpty()) {
+                log.warn("No model_results.chart in vitimeteo oidium response");
+                return;
+            }
+            byName = collectSeriesByName(modelChart);
+            latestColor = latestStringValue(byName.get("InfRiskColor"), todayStr);
             riskScore = latestDoubleValue(byName.get("Oidiumindex"), todayStr);
         }
+
+        String riskLevel = colorToRiskLevel(latestColor);
 
         WbiPrognosis prognosis = prognosisRepository
                 .findByDiseaseAndForecastDate(disease, today)
@@ -195,11 +224,12 @@ public class WbiPrognosisService {
             prognosis.setLeafWetnessDegreeHours(
                     latestDoubleValue(byName.get("Gradstunden Blattnässe"), todayStr));
         } else if ("oidium".equals(disease)) {
+            String yesterdayStr = today.minusDays(1).format(DATE_FMT);
             prognosis.setOidiumIndex(latestDoubleValue(byName.get("Oidiumindex"), todayStr));
             prognosis.setOntogeneticIndex(
                     latestDoubleValue(byName.get("Ontogenetischer Index"), todayStr));
             prognosis.setOidiumDailyValue(
-                    latestDoubleValue(byName.get("Oidium Tageswert"), todayStr));
+                    latestDoubleValue(byName.get("Oidium Tageswert"), yesterdayStr));
         }
 
         prognosisRepository.save(prognosis);
@@ -228,8 +258,8 @@ public class WbiPrognosisService {
         // Collect all available dates (past + forecast window) from BBCH series
         Map<String, Integer> bbchByDate = new LinkedHashMap<>();
         for (JsonNode pt : bbchSeries.path("point")) {
-            String dateStr = pt.path(0).asText("").substring(0, 10);
-            bbchByDate.put(dateStr, pt.path(1).asInt(0));
+            String dateStr = pointDate(pt.path(0));
+            if (dateStr != null) bbchByDate.put(dateStr, pt.path(1).asInt(0));
         }
 
         Map<String, Double> huglinByDate   = extractDoubleSeriesByDate(byName.get("Huglin-Index Heute"));
@@ -303,8 +333,20 @@ public class WbiPrognosisService {
 
                 LocalDateTime infectionDatetime = LocalDateTime.ofEpochSecond(
                         (long) points.get(0)[0], 0, ZoneOffset.UTC);
-                double latestPct = points.get(points.size() - 1)[1];
-                boolean isActive = latestPct < 100.0;
+
+                long nowEpoch = LocalDateTime.now(ZoneOffset.UTC).toEpochSecond(ZoneOffset.UTC);
+                double[] closestPoint = points.get(0);
+                long closestDelta = Math.abs((long) points.get(0)[0] - nowEpoch);
+                for (double[] pt : points) {
+                    long delta = Math.abs((long) pt[0] - nowEpoch);
+                    if (delta < closestDelta) {
+                        closestDelta = delta;
+                        closestPoint = pt;
+                    }
+                }
+                double latestPct = closestPoint[1];
+                boolean isActive = interpolateThreshold(points, 100.0) == null
+                        || interpolateThreshold(points, 100.0).toEpochSecond(ZoneOffset.UTC) > nowEpoch;
 
                 LocalDateTime deadline80   = interpolateThreshold(points, 80.0);
                 LocalDateTime sporulation  = interpolateThreshold(points, 100.0);
@@ -331,11 +373,27 @@ public class WbiPrognosisService {
 
         log.info("Saved {} peronospora Inkubation events from expert_data", savedEvents.size());
 
-        // Update today's wbi_prognosis row with incubation summary
+        final int finalInfCount = savedEvents.size();
+        JsonNode eventsChart = root.path("chartObj").path("events_results").path("chart");
+        int soilCount = 0;
+        int sporulationCount = 0;
+        if (eventsChart.isArray()) {
+            Map<String, JsonNode> eventsByName = collectSeriesByName(eventsChart);
+            JsonNode soilInf = eventsByName.get("Bodeninfektion");
+            if (soilInf != null) soilCount = soilInf.path("point").size();
+            JsonNode sporul = eventsByName.get("Sporulation");
+            if (sporul != null) sporulationCount = sporul.path("point").size();
+        }
+        final int finalSoilCount = soilCount;
+        final int finalSpCount   = sporulationCount;
+
         prognosisRepository.findByDiseaseAndForecastDate("peronospora", today).ifPresent(prognosis -> {
             long active = savedEvents.stream()
                     .filter(ev -> Boolean.TRUE.equals(ev.getIsActive())).count();
             prognosis.setActiveIncubationEvents((int) active);
+            prognosis.setInfectionEventCount(finalInfCount);
+            prognosis.setSoilInfectionCount(finalSoilCount);
+            prognosis.setSporulationCount(finalSpCount);
 
             savedEvents.stream()
                     .filter(ev -> Boolean.TRUE.equals(ev.getIsActive())
@@ -345,7 +403,8 @@ public class WbiPrognosisService {
                     .ifPresent(dt -> prognosis.setNextSprayDeadline(dt.toLocalDate()));
 
             savedEvents.stream()
-                    .filter(ev -> ev.getSporulationDatetime() != null)
+                    .filter(ev -> Boolean.TRUE.equals(ev.getIsActive())
+                            && ev.getSporulationDatetime() != null)
                     .map(PeronosporaInfectionEvent::getSporulationDatetime)
                     .max(Comparator.naturalOrder())
                     .ifPresent(dt -> prognosis.setLastSporulationDate(dt.toLocalDate()));
@@ -404,12 +463,19 @@ public class WbiPrognosisService {
         return result;
     }
 
+    /** Safely extract the date prefix (yyyy-MM-dd) from a point timestamp node. */
+    private static String pointDate(JsonNode node) {
+        String s = node.asText("");
+        return s.length() >= 10 ? s.substring(0, 10) : null;
+    }
+
     /** Returns the last string point value with date ≤ todayStr, or null. */
     private String latestStringValue(JsonNode series, String todayStr) {
         if (series == null) return null;
         String val = null;
         for (JsonNode pt : series.path("point")) {
-            if (pt.path(0).asText("").substring(0, 10).compareTo(todayStr) <= 0) {
+            String d = pointDate(pt.path(0));
+            if (d != null && d.compareTo(todayStr) <= 0) {
                 String v = pt.path(1).asText(null);
                 if (v != null) val = v;
             }
@@ -422,7 +488,8 @@ public class WbiPrognosisService {
         if (series == null) return 0.0;
         double val = 0.0;
         for (JsonNode pt : series.path("point")) {
-            if (pt.path(0).asText("").substring(0, 10).compareTo(todayStr) <= 0) {
+            String d = pointDate(pt.path(0));
+            if (d != null && d.compareTo(todayStr) <= 0) {
                 val = pt.path(1).asDouble(0.0);
             }
         }
@@ -434,7 +501,8 @@ public class WbiPrognosisService {
         Map<String, Double> result = new LinkedHashMap<>();
         if (series == null) return result;
         for (JsonNode pt : series.path("point")) {
-            result.put(pt.path(0).asText("").substring(0, 10), pt.path(1).asDouble(0.0));
+            String d = pointDate(pt.path(0));
+            if (d != null) result.put(d, pt.path(1).asDouble(0.0));
         }
         return result;
     }
@@ -519,6 +587,7 @@ public class WbiPrognosisService {
     private void refreshPrognosisData(String disease) {
         LocalDate today = LocalDate.now();
         try {
+            warmUpSession();
             int programId = "peronospora".equalsIgnoreCase(disease)
                     ? PERONOSPORA_PROGRAM_ID : OIDIUM_PROGRAM_ID;
             fetchAndStore(disease, programId, today);
@@ -546,6 +615,10 @@ public class WbiPrognosisService {
     }
 
     public Optional<VitimeteoPheno> getLatestPheno() {
-        return phenoRepository.findTopByOrderByPhenoDateDesc();
+        return phenoRepository.findTopByPhenoDateLessThanEqualOrderByPhenoDateDesc(LocalDate.now());
+    }
+
+    public int getMaxBbchCode() {
+        return phenoRepository.findMaxBbchCode().orElse(0);
     }
 }
