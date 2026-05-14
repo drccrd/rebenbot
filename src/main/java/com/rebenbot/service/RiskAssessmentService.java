@@ -16,6 +16,11 @@ import java.util.stream.Collectors;
 /**
  * Service to calculate and manage infection risk assessments.
  * Combines weather data with disease thresholds to generate risk scores.
+ *
+ * TODO: This service is superseded by vitimeteo risk_data.json (WbiPrognosisService), which provides
+ *       biological-model risk scores directly from WBI Freiburg. Kept for offline/comparative use.
+ *       Revisit whether to remove: RiskAssessmentService, RiskCalculator, InfectionRisk model,
+ *       risk_assessment DB table, InfectionRiskRepository, RiskController.
  */
 @Service
 @Slf4j

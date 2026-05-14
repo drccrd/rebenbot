@@ -27,9 +27,73 @@
         </div>
       </section>
 
+      <!-- Spray Recommendation -->
+      <section class="spray-rec-section" v-if="sprayRecommendation">
+        <h2 @click="toggleSection('sprayRecommendation')" class="section-header" :class="{ collapsed: collapsedSections.sprayRecommendation }">
+          <span class="section-toggle">{{ collapsedSections.sprayRecommendation ? '▶' : '▼' }}</span>
+          💊 Next Spray Recommendation
+          <span class="rec-urgency-badge" :class="urgencyClass(sprayRecommendation.urgency)">
+            {{ sprayRecommendation.urgency.replace('_', ' ') }}
+          </span>
+        </h2>
+        <div v-show="!collapsedSections.sprayRecommendation" class="spray-rec-card" :class="urgencyClass(sprayRecommendation.urgency)">
+          <p class="rec-explanation">{{ sprayRecommendation.explanation }}</p>
+
+          <div class="rec-date-row">
+            <div class="rec-date-block">
+              <span class="rec-date-label">Target date</span>
+              <span class="rec-date-value">{{ formatDate(sprayRecommendation.targetDate) }}</span>
+            </div>
+            <div class="rec-date-block">
+              <span class="rec-date-label">Allowable window</span>
+              <span class="rec-date-value">{{ formatDate(sprayRecommendation.windowStart) }} – {{ formatDate(sprayRecommendation.windowEnd) }}</span>
+            </div>
+            <div class="rec-date-block">
+              <span class="rec-date-label">Days until target</span>
+              <span class="rec-date-value">{{ sprayRecommendation.daysUntilTarget }}</span>
+            </div>
+            <div class="rec-date-block" v-if="sprayRecommendation.daysSinceLastSpray !== null">
+              <span class="rec-date-label">Days since last spray</span>
+              <span class="rec-date-value">{{ sprayRecommendation.daysSinceLastSpray }}</span>
+            </div>
+            <div class="rec-date-block">
+              <span class="rec-date-label">Recommended interval</span>
+              <span class="rec-date-value">{{ sprayRecommendation.recommendedIntervalDays }} days</span>
+            </div>
+          </div>
+
+          <div class="rec-wbi-row" v-if="sprayRecommendation.wbiPeronospora || sprayRecommendation.wbiOidium">
+            <div class="rec-wbi-chip" v-if="sprayRecommendation.wbiPeronospora"
+                 :class="sprayRecommendation.wbiPeronospora.riskLevel === 'INFECTION_RISK' ? 'wbi-risk-infection_risk' : 'wbi-risk-no_infection'">
+              <strong>Peronospora</strong>
+              {{ sprayRecommendation.wbiPeronospora.riskLevel }} — {{ (sprayRecommendation.wbiPeronospora.riskScore || 0).toFixed(1) }}%
+              <span v-if="sprayRecommendation.wbiPeronospora.nextSprayDeadline">
+                · spray by {{ formatDate(sprayRecommendation.wbiPeronospora.nextSprayDeadline) }}
+              </span>
+              <div class="wbi-forecast-date">WBI forecast: {{ formatDate(sprayRecommendation.wbiPeronospora.forecastDate) }}</div>
+            </div>
+            <div class="rec-wbi-chip" v-if="sprayRecommendation.wbiOidium"
+                 :class="sprayRecommendation.wbiOidium.riskLevel === 'INFECTION_RISK' ? 'wbi-risk-infection_risk' : 'wbi-risk-no_infection'">
+              <strong>Oidium</strong>
+              {{ sprayRecommendation.wbiOidium.riskLevel }} — {{ sprayRecommendation.wbiOidium.riskScore || 0 }}%
+              <div class="wbi-forecast-date">WBI forecast: {{ formatDate(sprayRecommendation.wbiOidium.forecastDate) }}</div>
+            </div>
+          </div>
+
+          <details class="rec-factors-details">
+            <summary>Driving factors</summary>
+            <dl class="rec-factors-list">
+              <template v-for="(value, key) in sprayRecommendation.drivingFactors" :key="key">
+                <dt>{{ key.replace(/_/g, ' ') }}</dt>
+                <dd>{{ value }}</dd>
+              </template>
+            </dl>
+          </details>
+        </div>
+      </section>
+
       <!-- Current Weather -->
-      <section class="weather-section" v-if="currentWeather">
-        <h2 @click="toggleSection('weather')" class="section-header" :class="{ collapsed: collapsedSections.weather }">
+      <section class="weather-section" v-if="currentWeather">        <h2 @click="toggleSection('weather')" class="section-header" :class="{ collapsed: collapsedSections.weather }">
           <span class="section-toggle">{{ collapsedSections.weather ? '▶' : '▼' }}</span>
           Current Weather
         </h2>
@@ -64,10 +128,26 @@
           Vine Growth Stage
         </h2>
         <div v-show="!collapsedSections.growthStage" class="growth-stage-card">
+          <!-- Parallel BBCH tracks -->
+          <div class="stage-tracks">
+            <div class="stage-track">
+              <div class="stage-track-label">🌿 Shoot / Leaf</div>
+              <div class="stage-track-value">{{ growthStage.shootStageName }}</div>
+              <div class="stage-track-bbch" v-if="growthStage.shootBbch > 0">BBCH {{ growthStage.shootBbch }}</div>
+            </div>
+            <div class="stage-track" :class="{ 'stage-track-active': growthStage.berryBbch > 0 }">
+              <div class="stage-track-label">🍇 Berry / Inflorescence</div>
+              <div class="stage-track-value">{{ growthStage.berryStageName }}</div>
+              <div class="stage-track-bbch" v-if="growthStage.berryBbch > 0">BBCH {{ growthStage.berryBbch }}</div>
+              <div class="stage-track-oidium" v-if="growthStage.berryBbch >= 53 && growthStage.berryBbch <= 79">
+                ⚠️ Oidium susceptibility window active
+              </div>
+            </div>
+          </div>
+
           <div class="stage-display">
             <div class="stage-icon">🌱</div>
             <div class="stage-info">
-              <p class="stage-code">{{ growthStage.stageBbchName }}</p>
               <p class="stage-gdd" :title="'Growing Degree Days: cumulative heat units since April 1st (base temp 10°C)'">
                 Accumulated GDD: {{ growthStage.currentGdd.toFixed(1) }}°
               </p>
@@ -78,6 +158,15 @@
                 📊 Calculated from weather data
               </p>
             </div>
+          </div>
+
+          <!-- VitiMeteo phenology data -->
+          <div v-if="latestPheno" class="stage-pheno-row">
+            <span class="pheno-label">🌿 VitiMeteo:</span>
+            <span class="pheno-item" v-if="latestPheno.bbchCode !== null">BBCH {{ latestPheno.bbchCode.toFixed(0) }}</span>
+            <span class="pheno-item" v-if="latestPheno.huglinIndex !== null">Huglin {{ latestPheno.huglinIndex.toFixed(0) }}</span>
+            <span class="pheno-item" v-if="latestPheno.leafCount !== null">{{ latestPheno.leafCount.toFixed(0) }} leaves</span>
+            <span class="pheno-source">({{ formatWbiDate(latestPheno.phenoDate) }})</span>
           </div>
           
           <div class="stage-controls">
@@ -153,17 +242,43 @@
               </span>
             </div>
             <div class="wbi-score-bar">
-              <div class="wbi-bar" :style="{ width: (wbiPrognosis.peronospora.riskScore || 0) + '%' }"></div>
+              <div class="wbi-bar" :style="{ width: Math.min(wbiPrognosis.peronospora.riskScore || 0, 100) + '%' }"></div>
             </div>
             <div class="wbi-details">
               <p class="wbi-score">
-                <strong>Infection Risk:</strong> {{ wbiPrognosis.peronospora.riskScore || 0 }}%
+                <strong>Infection Risk Index:</strong> {{ (wbiPrognosis.peronospora.riskScore || 0).toFixed(1) }}
               </p>
-              <p v-if="wbiPrognosis.peronospora.incubationEndDate" class="wbi-incubation">
-                <strong>Incubation Period Ends:</strong> {{ formatWbiDate(wbiPrognosis.peronospora.incubationEndDate) }}
+              <p v-if="wbiPrognosis.peronospora.leafWetnessHours" class="wbi-row">
+                <strong>Leaf Wetness:</strong>
+                {{ wbiPrognosis.peronospora.leafWetnessHours.toFixed(1) }}h /
+                {{ (wbiPrognosis.peronospora.leafWetnessDegreeHours || 0).toFixed(1) }}°h
               </p>
-              <p v-if="wbiPrognosis.peronospora.incubationAccuracy" class="wbi-accuracy">
-                <strong>Accuracy Estimate:</strong> {{ wbiPrognosis.peronospora.incubationAccuracy }}%
+              <p v-if="wbiPrognosis.peronospora.infectionEventCount !== null && wbiPrognosis.peronospora.infectionEventCount !== undefined" class="wbi-row">
+                <strong>Events:</strong>
+                {{ wbiPrognosis.peronospora.infectionEventCount }} infection{{ wbiPrognosis.peronospora.infectionEventCount !== 1 ? 's' : '' }} ·
+                {{ wbiPrognosis.peronospora.soilInfectionCount || 0 }} soil ·
+                {{ wbiPrognosis.peronospora.sporulationCount || 0 }} sporulation{{ wbiPrognosis.peronospora.sporulationCount !== 1 ? 's' : '' }}
+              </p>
+              <p v-if="wbiPrognosis.peronospora.activeIncubationEvents" class="wbi-row wbi-incubation-count">
+                <strong>Active incubations:</strong> {{ wbiPrognosis.peronospora.activeIncubationEvents }}
+              </p>
+              <!-- Per-event incubation progress bars -->
+              <div v-if="incubationEvents.length > 0" class="wbi-incubation-bars">
+                <div v-for="evt in incubationEvents" :key="evt.id" class="incub-bar-row">
+                  <span class="incub-bar-label">{{ formatDateTime(evt.infectionDatetime) }}</span>
+                  <div class="incub-bar-track">
+                    <div class="incub-bar-fill"
+                         :style="{ width: Math.min(evt.incubationPctLatest || 0, 100) + '%' }"
+                         :class="{ 'incub-bar-complete': (evt.incubationPctLatest || 0) >= 100 }"></div>
+                  </div>
+                  <span class="incub-bar-pct">{{ (evt.incubationPctLatest || 0).toFixed(0) }}%</span>
+                </div>
+              </div>
+              <p v-if="wbiPrognosis.peronospora.nextSprayDeadline" class="wbi-row wbi-spray-deadline">
+                <strong>⚠ Spray by:</strong> {{ formatWbiDate(wbiPrognosis.peronospora.nextSprayDeadline) }}
+              </p>
+              <p v-if="wbiPrognosis.peronospora.lastSporulationDate" class="wbi-row">
+                <strong>Last sporulation:</strong> {{ formatWbiDate(wbiPrognosis.peronospora.lastSporulationDate) }}
               </p>
               <p class="wbi-forecast-date">
                 <strong>Forecast Date:</strong> {{ formatWbiDate(wbiPrognosis.peronospora.forecastDate) }}
@@ -180,17 +295,20 @@
               </span>
             </div>
             <div class="wbi-score-bar">
-              <div class="wbi-bar" :style="{ width: (wbiPrognosis.oidium.riskScore || 0) + '%' }"></div>
+              <div class="wbi-bar" :style="{ width: Math.min(wbiPrognosis.oidium.riskScore || 0, 100) + '%' }"></div>
             </div>
             <div class="wbi-details">
               <p class="wbi-score">
-                <strong>Infection Risk:</strong> {{ wbiPrognosis.oidium.riskScore || 0 }}%
+                <strong>Risk Score:</strong> {{ (wbiPrognosis.oidium.riskScore || 0).toFixed(1) }}
               </p>
-              <p v-if="wbiPrognosis.oidium.incubationEndDate" class="wbi-incubation">
-                <strong>Incubation Period Ends:</strong> {{ formatWbiDate(wbiPrognosis.oidium.incubationEndDate) }}
+              <p v-if="wbiPrognosis.oidium.oidiumIndex !== null && wbiPrognosis.oidium.oidiumIndex !== undefined" class="wbi-row">
+                <strong>Oidium Index:</strong> {{ (wbiPrognosis.oidium.oidiumIndex || 0).toFixed(1) }}
               </p>
-              <p v-if="wbiPrognosis.oidium.incubationAccuracy" class="wbi-accuracy">
-                <strong>Accuracy Estimate:</strong> {{ wbiPrognosis.oidium.incubationAccuracy }}%
+              <p v-if="wbiPrognosis.oidium.ontogeneticIndex !== null && wbiPrognosis.oidium.ontogeneticIndex !== undefined" class="wbi-row">
+                <strong>Ontogenetic Index:</strong> {{ (wbiPrognosis.oidium.ontogeneticIndex || 0).toFixed(1) }}
+              </p>
+              <p v-if="wbiPrognosis.oidium.oidiumDailyValue !== null && wbiPrognosis.oidium.oidiumDailyValue !== undefined" class="wbi-row">
+                <strong>Daily Value:</strong> {{ (wbiPrognosis.oidium.oidiumDailyValue || 0).toFixed(1) }}
               </p>
               <p class="wbi-forecast-date">
                 <strong>Forecast Date:</strong> {{ formatWbiDate(wbiPrognosis.oidium.forecastDate) }}
@@ -836,8 +954,6 @@
         </div>
       </section>
 
-      <!-- Fungicide Buying Guide -->
-
       <!-- Admin: Data Sync -->
       <section class="data-sync-section">
         <h2 @click="toggleSection('dataSync')" class="section-header" :class="{ collapsed: collapsedSections.dataSync }">
@@ -1026,13 +1142,15 @@ export default {
       vineyard: null,
       currentWeather: null,
       risks: [],
-      recommendations: [],
       wbiPrognosis: {
         peronospora: null,
         oidium: null
       },
+      incubationEvents: [],
+      latestPheno: null,
       rainfallSummary: null,
       sprayWindow: null,
+      sprayRecommendation: null,
       growthStage: null,
       availableStages: {},
       selectedStageOverride: '',
@@ -1086,6 +1204,7 @@ export default {
       },
       purchasesConfirmed: false,
       collapsedSections: {
+        sprayRecommendation: false,
         weather: false,
         rainfallTiming: false,
         growthStage: false,
@@ -1302,8 +1421,9 @@ export default {
           this.fetchVineyard(),
           this.fetchWeather(),
           this.fetchRiskAssessment(),
-          this.fetchRecommendations(),
           this.fetchWbiPrognosis(),
+          this.fetchIncubationEvents(),
+          this.fetchLatestPheno(),
           this.fetchRainfallSummary(),
           this.fetchSprayWindow(),
           this.fetchGrowthStage(),
@@ -1318,6 +1438,9 @@ export default {
           this.fetchRotationPlans(),
           this.fetchExpiringApprovals()
         ])
+        // Spray recommendation depends on vineyard being loaded first
+        await this.fetchSprayRecommendation()
+        this.checkAndFireNotification()
         this.lastUpdate = new Date().toLocaleTimeString()
         this.loadPersistedPlan()
       } catch (err) {
@@ -1401,33 +1524,6 @@ export default {
         console.warn('Failed to fetch risk assessment:', err)
       }
     },
-    async fetchRecommendations() {
-      try {
-        const response = await axios.get('/api/v1/fungicides/latest-recommendations')
-        console.log('Recommendations response:', response.data)
-        if (response.data && response.data.recommendations) {
-          // Flatten recommendations for easier display
-          this.recommendations = []
-          for (const [disease, recs] of Object.entries(response.data.recommendations)) {
-            recs.forEach(rec => {
-              this.recommendations.push({ ...rec, disease })
-            })
-          }
-        } else if (response.data && typeof response.data === 'object') {
-          // If response is already a flat object of disease->recommendations
-          this.recommendations = []
-          for (const [disease, recs] of Object.entries(response.data)) {
-            if (Array.isArray(recs)) {
-              recs.forEach(rec => {
-                this.recommendations.push({ ...rec, disease })
-              })
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('Failed to fetch recommendations:', err)
-      }
-    },
     async fetchWbiPrognosis() {
       try {
         const [perResponse, oidResponse] = await Promise.all([
@@ -1445,6 +1541,26 @@ export default {
         }
       } catch (err) {
         console.warn('Failed to fetch WBI prognosis:', err)
+      }
+    },
+    async fetchIncubationEvents() {
+      try {
+        const response = await axios.get('/api/v1/wbi/incubation/active')
+        if (Array.isArray(response.data)) {
+          this.incubationEvents = response.data
+        }
+      } catch (err) {
+        console.warn('Failed to fetch incubation events:', err)
+      }
+    },
+    async fetchLatestPheno() {
+      try {
+        const response = await axios.get('/api/v1/wbi/pheno/latest')
+        if (response.data) {
+          this.latestPheno = response.data
+        }
+      } catch (err) {
+        console.warn('Failed to fetch latest pheno:', err)
       }
     },
     async fetchRainfallSummary() {
@@ -1552,16 +1668,6 @@ export default {
       } finally {
         this.syncingBvl = false
       }
-    },
-    groupRecommendations() {
-      const grouped = {}
-      this.recommendations.forEach(rec => {
-        if (!grouped[rec.disease]) {
-          grouped[rec.disease] = []
-        }
-        grouped[rec.disease].push(rec)
-      })
-      return grouped
     },
     formatOptimalConditions(disease) {
       const commonName = disease?.commonName || disease?.name || ''
@@ -1698,6 +1804,62 @@ export default {
         console.warn('Failed to fetch recent sprays:', err)
       }
     },
+    async fetchSprayRecommendation() {
+      if (!this.vineyard) return
+      try {
+        const response = await axios.get(`/api/v1/spray/recommendation?vineyardId=${this.vineyard.id}`)
+        if (response.data) {
+          this.sprayRecommendation = response.data
+        }
+      } catch (err) {
+        console.warn('Failed to fetch spray recommendation:', err)
+      }
+    },
+    checkAndFireNotification() {
+      if (!this.sprayRecommendation || !this.sprayRecommendation.actionWithin7Days) return
+      if (!('Notification' in window)) return
+      if (Notification.permission === 'denied') return
+
+      const fire = () => {
+        const emoji = this.sprayRecommendation.urgency === 'URGENT' ? '🚨' : '⚠️'
+        new Notification(`${emoji} Rebenbot: Spray Action Required`, {
+          body: this.sprayRecommendation.explanation,
+          tag: 'spray-reminder'
+        })
+      }
+
+      if (Notification.permission === 'granted') {
+        fire()
+      } else {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') fire()
+        })
+      }
+    },
+    urgencyClass(urgency) {
+      return {
+        'rec-urgent': urgency === 'URGENT',
+        'rec-action': urgency === 'ACTION_RECOMMENDED',
+        'rec-scheduled': urgency === 'SCHEDULED',
+        'rec-monitor': urgency === 'MONITOR'
+      }
+    },
+    formatDate(dateValue) {
+      if (!dateValue) return 'N/A'
+      try {
+        let date
+        if (Array.isArray(dateValue)) {
+          const [year, month, day] = dateValue
+          date = new Date(year, month - 1, day)
+        } else {
+          date = new Date(dateValue)
+        }
+        if (isNaN(date.getTime())) return 'Invalid date'
+        return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+      } catch (e) {
+        return 'Invalid date'
+      }
+    },
     async recordEntry() {
       if (this.entryMode === 'spray') {
         return this.recordSpray()
@@ -1801,20 +1963,6 @@ export default {
       } finally {
         this.recordingSpray = false
       }
-    },
-    calculateFungicideDosage(dosageMlPer100L) {
-      if (!dosageMlPer100L || !this.vineyard) {
-        return 'N/A'
-      }
-      
-      // Standard spray volume: 400 L/hectare (4 L per are)
-      const sprayVolumePerAre = 4
-      const totalWaterLiters = this.vineyard.sizeAres * sprayVolumePerAre
-      
-      // Calculate dosage: (ml per 100L) * (totalWater L / 100 L)
-      const dosageLiters = (dosageMlPer100L / 100.0) * (totalWaterLiters / 100.0)
-      
-      return dosageLiters.toFixed(2)
     },
 
     // ===== Season Planner methods =====
@@ -2261,17 +2409,17 @@ h2 {
   color: white;
 }
 
-.wbi-badge.wbi-risk-high_infection_risk {
+.wbi-badge.wbi-risk-high {
   background: #ff9800;
   color: white;
 }
 
-.wbi-badge.wbi-risk-low_infection_risk {
+.wbi-badge.wbi-risk-low {
   background: #ffc107;
   color: #333;
 }
 
-.wbi-badge.wbi-risk-no_infection_risk {
+.wbi-badge.wbi-risk-no_infection {
   background: #4caf50;
   color: white;
 }
@@ -2301,13 +2449,104 @@ h2 {
   color: #333;
 }
 
-.wbi-incubation {
+.wbi-row {
+  margin: 0.4rem 0;
+  font-size: 0.9rem;
+  color: #444;
+}
+
+.wbi-incubation-count {
+  font-weight: 600;
   color: #667eea;
 }
 
-.wbi-accuracy {
+.wbi-spray-deadline {
+  font-weight: 600;
+  color: #e53935;
+  background: #fff3e0;
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  border-left: 3px solid #e53935;
+}
+
+.wbi-incubation-bars {
+  margin: 0.6rem 0;
+}
+
+.incub-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.3rem 0;
+  font-size: 0.82rem;
+}
+
+.incub-bar-label {
+  width: 90px;
+  flex-shrink: 0;
   color: #666;
-  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.incub-bar-track {
+  flex: 1;
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.incub-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4caf50 0%, #ff9800 70%, #f44336 100%);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.incub-bar-fill.incub-bar-complete {
+  background: #f44336;
+}
+
+.incub-bar-pct {
+  width: 34px;
+  text-align: right;
+  color: #555;
+  font-weight: 600;
+}
+
+.stage-pheno-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+  padding: 0.5rem 0.8rem;
+  background: #f0f7f0;
+  border-radius: 6px;
+  font-size: 0.88rem;
+}
+
+.pheno-label {
+  font-weight: 600;
+  color: #388e3c;
+  flex-shrink: 0;
+}
+
+.pheno-item {
+  background: #c8e6c9;
+  color: #1b5e20;
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.pheno-source {
+  color: #888;
+  font-size: 0.8rem;
+  margin-left: auto;
 }
 
 .wbi-forecast-date {
@@ -2316,131 +2555,6 @@ h2 {
   margin-top: 0.8rem;
   padding-top: 0.8rem;
   border-top: 1px solid #eee;
-}
-
-.recommendations-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
-
-.recommendation-group h3 {
-  color: #667eea;
-  margin-bottom: 1rem;
-  font-size: 1.1rem;
-}
-
-.fungicide-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1rem;
-}
-
-.fungicide-card {
-  background: #f9f9f9;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 1.5rem;
-  transition: all 0.3s ease;
-}
-
-.fungicide-card:hover {
-  border-color: #667eea;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
-  transform: translateY(-2px);
-}
-
-.fungicide-card.not-applicable {
-  opacity: 0.7;
-  background: #fafafa;
-}
-
-.fungicide-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 0.8rem;
-}
-
-.fungicide-header h4 {
-  margin: 0;
-  color: #333;
-  font-size: 1rem;
-  flex: 1;
-}
-
-.score-badge {
-  background: #667eea;
-  color: white;
-  padding: 0.3rem 0.7rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  margin-left: 0.5rem;
-  white-space: nowrap;
-}
-
-.active-substance {
-  color: #999;
-  font-size: 0.85rem;
-  margin: 0.3rem 0 0.8rem 0;
-}
-
-.timing {
-  background: #e3f2fd;
-  color: #1976d2;
-  padding: 0.5rem;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  margin-bottom: 0.8rem;
-}
-
-.rationale {
-  color: #666;
-  font-size: 0.85rem;
-  line-height: 1.4;
-  margin: 0.8rem 0;
-}
-
-.fungicide-details {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid #eee;
-}
-
-.phi-ok {
-  color: #4caf50;
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.phi-warn {
-  color: #ff9800;
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.dosage-info {
-  background: #f0f4ff;
-  border-left: 3px solid #3f51b5;
-  padding: 8px 12px;
-  margin-top: 8px;
-  border-radius: 2px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.9rem;
-}
-
-.dosage-label {
-  color: #555;
-  font-weight: 600;
-}
-
-.dosage-value {
-  color: #3f51b5;
-  font-weight: 700;
-  font-size: 1rem;
 }
 
 .spray-grid {
@@ -2563,6 +2677,55 @@ h2 {
   display: flex;
   gap: 2rem;
   align-items: flex-start;
+}
+
+.stage-tracks {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.stage-track {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 1rem;
+  opacity: 0.7;
+}
+
+.stage-track.stage-track-active {
+  background: rgba(76, 175, 80, 0.2);
+  border-color: rgba(76, 175, 80, 0.5);
+  opacity: 1;
+}
+
+.stage-track-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.75;
+  margin-bottom: 0.35rem;
+}
+
+.stage-track-value {
+  font-size: 0.95rem;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.stage-track-bbch {
+  font-size: 0.85rem;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.stage-track-oidium {
+  margin-top: 0.4rem;
+  font-size: 0.8rem;
+  color: #ffcc80;
+  font-weight: 600;
 }
 
 .stage-display {
@@ -4314,6 +4477,147 @@ tr.plan-next td {
   margin-bottom: 0.3rem;
   color: #555;
   line-height: 1.5;
+}
+
+/* ---- Spray Recommendation ---- */
+.spray-rec-section {
+  margin-bottom: 1.5rem;
+}
+
+.rec-urgency-badge {
+  display: inline-block;
+  margin-left: 0.7rem;
+  padding: 0.2rem 0.7rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  vertical-align: middle;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.rec-urgent { border-left: 5px solid #e53935; }
+.rec-action { border-left: 5px solid #fb8c00; }
+.rec-scheduled { border-left: 5px solid #f9a825; }
+.rec-monitor { border-left: 5px solid #42a5f5; }
+
+.rec-urgency-badge.rec-urgent   { background: #e53935; color: #fff; }
+.rec-urgency-badge.rec-action   { background: #fb8c00; color: #fff; }
+.rec-urgency-badge.rec-scheduled { background: #f9a825; color: #333; }
+.rec-urgency-badge.rec-monitor  { background: #42a5f5; color: #fff; }
+
+.spray-rec-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 1.2rem 1.4rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  border-left: 5px solid #ccc;
+}
+.spray-rec-card.rec-urgent   { border-left-color: #e53935; background: #fff5f5; }
+.spray-rec-card.rec-action   { border-left-color: #fb8c00; background: #fff8f0; }
+.spray-rec-card.rec-scheduled { border-left-color: #f9a825; background: #fffde7; }
+.spray-rec-card.rec-monitor  { border-left-color: #42a5f5; background: #f0f8ff; }
+
+.rec-explanation {
+  font-size: 1rem;
+  font-weight: 500;
+  margin: 0 0 1rem 0;
+  color: #333;
+}
+
+.rec-date-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.rec-date-block {
+  display: flex;
+  flex-direction: column;
+  background: rgba(255,255,255,0.7);
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  min-width: 120px;
+}
+
+.rec-date-label {
+  font-size: 0.72rem;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.rec-date-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #222;
+}
+
+.rec-wbi-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.rec-wbi-chip {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  background: #eee;
+  color: #333;
+  flex: 1 1 200px;
+}
+
+.rec-wbi-chip.wbi-risk-infection_risk {
+  background: #fff0f0;
+  border: 1px solid #e53935;
+  color: #b71c1c;
+}
+
+.rec-wbi-chip.wbi-risk-no_infection {
+  background: #f0fff4;
+  border: 1px solid #43a047;
+  color: #1b5e20;
+}
+
+.wbi-forecast-date {
+  font-size: 0.75rem;
+  color: #888;
+  margin-top: 0.3rem;
+}
+
+.rec-factors-details {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.rec-factors-details summary {
+  cursor: pointer;
+  color: #555;
+  font-weight: 600;
+  user-select: none;
+}
+
+.rec-factors-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.3rem 1rem;
+  margin: 0.6rem 0 0 0;
+  padding: 0;
+}
+
+.rec-factors-list dt {
+  color: #777;
+  font-weight: 500;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.rec-factors-list dd {
+  margin: 0;
+  color: #333;
 }
 
 </style>

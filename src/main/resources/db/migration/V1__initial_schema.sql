@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS vineyards (
     region VARCHAR(255),
     description TEXT,
     last_spray_date TIMESTAMP,
-    growth_stage VARCHAR(10),
+    growth_stage VARCHAR(50),
     is_manual_growth_stage BOOLEAN DEFAULT FALSE,
     growth_stage_last_updated TIMESTAMP,
     accumulated_gdd DOUBLE PRECISION,
@@ -149,14 +149,26 @@ CREATE TABLE IF NOT EXISTS vineyard_log_entry (
 CREATE TABLE IF NOT EXISTS wbi_prognosis (
     id BIGSERIAL PRIMARY KEY,
     forecast_date DATE NOT NULL,
-    disease VARCHAR(50) NOT NULL,
-    risk_level VARCHAR(50) NOT NULL,
-    risk_score INTEGER,
-    incubation_end_date DATE,
-    incubation_accuracy INTEGER,
-    created_at DATE NOT NULL DEFAULT CURRENT_DATE,
-    source_url VARCHAR(512),
-    raw_text TEXT,
+    disease VARCHAR(50) NOT NULL,              -- 'peronospora' or 'oidium'
+    risk_level VARCHAR(50) NOT NULL,           -- NO_INFECTION, LOW, INFECTION_RISK, HIGH
+    risk_color VARCHAR(30),                    -- raw color string from vitimeteo (e.g. 'lime', '#FFAAAA')
+    risk_score DOUBLE PRECISION,              -- InfektionsstärkeIndex (peronospora) or OidiumIndex (oidium)
+    is_forecast BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fetched_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- Peronospora-specific summary columns
+    soil_infection_count INTEGER,             -- Bodeninfektion daily count
+    infection_event_count INTEGER,            -- Infektionen daily count
+    sporulation_count INTEGER,                -- Sporulationen daily count
+    leaf_wetness_hours DOUBLE PRECISION,
+    leaf_wetness_degree_hours DOUBLE PRECISION,
+    active_incubation_events INTEGER,         -- number of ongoing Inkubation series at this date
+    next_spray_deadline DATE,                 -- earliest date any active incubation reaches 80%
+    last_sporulation_date DATE,               -- most recent Sporulation event date
+    -- Oidium-specific summary columns
+    oidium_index DOUBLE PRECISION,
+    ontogenetic_index DOUBLE PRECISION,
+    oidium_daily_value DOUBLE PRECISION,
     UNIQUE(forecast_date, disease)
 );
 
@@ -177,6 +189,31 @@ CREATE INDEX idx_fungicide_target_disease ON fungicide_target_disease(product_id
 CREATE INDEX idx_growth_stage_vineyard ON growth_stage(vineyard_id);
 CREATE INDEX idx_wbi_disease_date ON wbi_prognosis(disease, forecast_date DESC);
 CREATE INDEX idx_wbi_created_at ON wbi_prognosis(created_at);
+
+CREATE TABLE IF NOT EXISTS peronospora_infection_event (
+    id BIGSERIAL PRIMARY KEY,
+    series_id VARCHAR(30) NOT NULL UNIQUE,    -- e.g. 'series_7016_5' from expert_data.json
+    infection_datetime TIMESTAMP NOT NULL,    -- first timestamp in the Inkubation series
+    incubation_pct_latest DOUBLE PRECISION,   -- most recent incubation % value
+    incubation_80pct_datetime TIMESTAMP,      -- estimated datetime incubation reaches 80% (spray deadline)
+    sporulation_datetime TIMESTAMP,           -- datetime incubation reached/will reach 100%
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,  -- false once sporulation is complete
+    fetched_date DATE NOT NULL                -- date this row was last updated from the API
+);
+
+CREATE TABLE IF NOT EXISTS vitimeteo_pheno_daily (
+    id BIGSERIAL PRIMARY KEY,
+    pheno_date DATE NOT NULL UNIQUE,
+    bbch_code INTEGER,                        -- BBCH phenological stage from vitimeteo model
+    huglin_index DOUBLE PRECISION,            -- accumulated Huglin heliothermal index
+    leaf_count DOUBLE PRECISION,
+    leaf_area_cm2 DOUBLE PRECISION,
+    fetched_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_pero_event_series ON peronospora_infection_event(series_id);
+CREATE INDEX idx_pero_event_active ON peronospora_infection_event(is_active, infection_datetime DESC);
+CREATE INDEX idx_pheno_date ON vitimeteo_pheno_daily(pheno_date DESC);
 
 -- -----------------------------------------------------------------------
 -- Seed: Fungal diseases

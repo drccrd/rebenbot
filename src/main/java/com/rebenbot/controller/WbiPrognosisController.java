@@ -1,5 +1,7 @@
 package com.rebenbot.controller;
 
+import com.rebenbot.model.PeronosporaInfectionEvent;
+import com.rebenbot.model.VitimeteoPheno;
 import com.rebenbot.model.WbiPrognosis;
 import com.rebenbot.service.WbiPrognosisService;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -65,5 +67,23 @@ public class WbiPrognosisController {
             log.error("Error refreshing prognosis: {}", e.getMessage());
             return ResponseEntity.status(500).body("Error: " + e.getMessage());
         }
+    }
+
+    /**
+     * Get active peronospora incubation events (incubation < 100%).
+     */
+    @GetMapping("/incubation/active")
+    public ResponseEntity<List<PeronosporaInfectionEvent>> getActiveIncubationEvents() {
+        return ResponseEntity.ok(wbiPrognosisService.getActiveIncubationEvents());
+    }
+
+    /**
+     * Get latest vitimeteo phenology record.
+     */
+    @GetMapping("/pheno/latest")
+    public ResponseEntity<?> getLatestPheno() {
+        return wbiPrognosisService.getLatestPheno()
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 }

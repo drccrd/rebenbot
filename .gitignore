@@ -8,6 +8,9 @@ target/
 # IDE
 .vscode/
 .idea/
+.serena/
+temp/
+AGENTS.md
 *.iml
 *.iws
 *.ipr

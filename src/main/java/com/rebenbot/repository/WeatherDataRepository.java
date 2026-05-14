@@ -71,5 +71,11 @@ public interface WeatherDataRepository extends JpaRepository<WeatherData, Long> 
      */
     @Query(value = "SELECT DISTINCT CAST(w.recorded_at AS DATE) FROM weather_data w WHERE w.recorded_at >= :startTime AND w.recorded_at < :endTime ORDER BY CAST(w.recorded_at AS DATE)", nativeQuery = true)
     List<String> findDistinctWeatherDates(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
+
+    /**
+     * Recent records for a specific vineyard — used for mean temperature calculation.
+     * Limit 14 covers approximately 7 days at twice-daily fetch cadence.
+     */
+    List<WeatherData> findTop14ByVineyardIdOrderByRecordedAtDesc(Long vineyardId);
 }
 

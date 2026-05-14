@@ -6,6 +6,10 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Calculates fungal disease infection risk based on weather conditions.
  * Uses published thresholds from LVWO (Staatliche Lehr- und Versuchsanstalt für Wein- und Obstbau).
+ *
+ * TODO: These local threshold-based calculations are superseded by vitimeteo expert_data.json
+ *       (Inkubation series), which provides per-infection-event incubation progress directly.
+ *       Kept for offline/comparative use — see RiskAssessmentService for full context.
  */
 @Slf4j
 public class RiskCalculator {

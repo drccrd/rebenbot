@@ -1,5 +1,6 @@
 package com.rebenbot.controller;
 
+import com.rebenbot.service.SprayRecommendationService;
 import com.rebenbot.service.SprayTimingService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,9 +17,12 @@ import java.util.Map;
 public class SprayTimingController {
 
     private final SprayTimingService sprayTimingService;
+    private final SprayRecommendationService sprayRecommendationService;
 
-    public SprayTimingController(SprayTimingService sprayTimingService) {
+    public SprayTimingController(SprayTimingService sprayTimingService,
+                                 SprayRecommendationService sprayRecommendationService) {
         this.sprayTimingService = sprayTimingService;
+        this.sprayRecommendationService = sprayRecommendationService;
     }
 
     /**
@@ -116,6 +120,29 @@ public class SprayTimingController {
         } catch (Exception e) {
             log.error("Error recording spray application", e);
             return ResponseEntity.status(500).body("Error recording spray: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get next-spray recommendation for a vineyard.
+     *
+     * Uses WBI prognosis risk levels as the primary driver.  The recommended
+     * spray interval shrinks as WBI infection risk increases:
+     *   > 50 % → 7 days,  25-50 % → 10 days,  < 25 % → 12 days,  none → 14 days.
+     *
+     * Response includes urgency, target date, allowable window, days until target,
+     * whether action is required within 7 days (for browser notifications), and
+     * the driving factors behind the recommendation.
+     */
+    @GetMapping("/recommendation")
+    public ResponseEntity<?> getSprayRecommendation(@RequestParam Long vineyardId) {
+        try {
+            SprayRecommendationService.SprayRecommendation recommendation =
+                    sprayRecommendationService.getRecommendation(vineyardId);
+            return ResponseEntity.ok(recommendation);
+        } catch (Exception e) {
+            log.error("Error calculating spray recommendation for vineyard {}", vineyardId, e);
+            return ResponseEntity.status(500).body("Error calculating spray recommendation: " + e.getMessage());
         }
     }
 

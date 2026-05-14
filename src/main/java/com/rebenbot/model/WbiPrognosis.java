@@ -6,10 +6,11 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * WBI Freiburg prognosis data for disease risk.
- * Downloaded daily from vitimeteo-bw.de PDF reports.
+ * Fetched daily from vitimeteo-bw.de JSON API (risk_data.json).
  */
 @Entity
 @Table(name = "wbi_prognosis")
@@ -29,18 +30,33 @@ public class WbiPrognosis {
     private String disease;  // "peronospora" or "oidium"
 
     @Column(nullable = false)
-    private String riskLevel;  // "no_infection", "weak", "middle", "severe"
+    private String riskLevel;  // NO_INFECTION, LOW, INFECTION_RISK, HIGH
 
-    private Integer riskScore;  // Numeric score if available (e.g., 50-100, 100-200, >200)
+    private String riskColor;  // raw color string from vitimeteo (e.g. "lime", "#FFAAAA")
 
-    private LocalDate incubationEndDate;  // Predicted end date of incubation period (peronospora only)
+    private Double riskScore;  // InfektionsstärkeIndex (peronospora) or OidiumIndex (oidium)
 
-    private Integer incubationAccuracy;  // Accuracy % of incubation period prediction (peronospora only)
+    @Column(nullable = false)
+    private Boolean isForecast = false;
 
     @Column(nullable = false, updatable = false)
-    private LocalDate createdAt = LocalDate.now();
+    private LocalDateTime createdAt = LocalDateTime.now();
 
-    private String sourceUrl;  // URL of the PDF this was extracted from
+    @Column(nullable = false)
+    private LocalDateTime fetchedAt = LocalDateTime.now();
 
-    private String rawText;  // Raw extracted text for debugging
+    // Peronospora-specific summary columns
+    private Integer soilInfectionCount;
+    private Integer infectionEventCount;
+    private Integer sporulationCount;
+    private Double leafWetnessHours;
+    private Double leafWetnessDegreeHours;
+    private Integer activeIncubationEvents;
+    private LocalDate nextSprayDeadline;
+    private LocalDate lastSporulationDate;
+
+    // Oidium-specific summary columns
+    private Double oidiumIndex;
+    private Double ontogeneticIndex;
+    private Double oidiumDailyValue;
 }

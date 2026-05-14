@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface VineyardLogEntryRepository extends JpaRepository<VineyardLogEntry, Long> {
@@ -25,4 +26,7 @@ public interface VineyardLogEntryRepository extends JpaRepository<VineyardLogEnt
     
     List<VineyardLogEntry> findByVineyardIdAndFungicideProductIdOrderByEntryDateDesc(
             Long vineyardId, Long fungicideProductId);
+
+    Optional<VineyardLogEntry> findTopByVineyardIdAndLogTypeOrderByEntryDateDesc(
+            Long vineyardId, VineyardLogEntry.LogType logType);
 }
