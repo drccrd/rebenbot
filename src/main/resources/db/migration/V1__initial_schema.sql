@@ -195,7 +195,7 @@ CREATE TABLE IF NOT EXISTS peronospora_infection_event (
     series_id VARCHAR(30) NOT NULL UNIQUE,    -- e.g. 'series_7016_5' from expert_data.json
     infection_datetime TIMESTAMP NOT NULL,    -- first timestamp in the Inkubation series
     incubation_pct_latest DOUBLE PRECISION,   -- most recent incubation % value
-    incubation_80pct_datetime TIMESTAMP,      -- estimated datetime incubation reaches 80% (spray deadline)
+    incubation80pct_datetime TIMESTAMP,       -- estimated datetime incubation reaches 80% (spray deadline)
     sporulation_datetime TIMESTAMP,           -- datetime incubation reached/will reach 100%
     is_active BOOLEAN NOT NULL DEFAULT TRUE,  -- false once sporulation is complete
     fetched_date DATE NOT NULL                -- date this row was last updated from the API
