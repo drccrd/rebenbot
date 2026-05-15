@@ -49,9 +49,10 @@ public interface WeatherDataRepository extends JpaRepository<WeatherData, Long> 
     
     /**
      * Find the most recent weather record with significant precipitation.
+     * Upper bound of :now excludes future forecast entries from the result.
      */
-    @Query("SELECT w FROM WeatherData w WHERE w.recordedAt > :startTime AND w.precipitationMm >= :minPrecipitation ORDER BY w.recordedAt DESC LIMIT 1")
-    Optional<WeatherData> findMostRecentSignificantRain(@Param("startTime") LocalDateTime startTime, @Param("minPrecipitation") Double minPrecipitation);
+    @Query("SELECT w FROM WeatherData w WHERE w.recordedAt > :startTime AND w.recordedAt <= :now AND w.precipitationMm >= :minPrecipitation ORDER BY w.recordedAt DESC LIMIT 1")
+    Optional<WeatherData> findMostRecentSignificantRain(@Param("startTime") LocalDateTime startTime, @Param("now") LocalDateTime now, @Param("minPrecipitation") Double minPrecipitation);
     
     /**
      * Find next significant rain event (forecast).

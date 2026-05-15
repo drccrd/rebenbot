@@ -104,7 +104,7 @@ public class SprayTimingService {
      */
     public Double getHoursSinceLastSignificantRain() {
         LocalDateTime cutoff = LocalDateTime.now().minusHours(72);
-        Optional<WeatherData> lastSignificantRain = weatherDataRepository.findMostRecentSignificantRain(cutoff, SIGNIFICANT_RAIN_HOURLY_MM);
+        Optional<WeatherData> lastSignificantRain = weatherDataRepository.findMostRecentSignificantRain(cutoff, LocalDateTime.now(), SIGNIFICANT_RAIN_HOURLY_MM);
         
         if (lastSignificantRain.isPresent()) {
             long hoursSinceLong = java.time.temporal.ChronoUnit.HOURS.between(lastSignificantRain.get().getRecordedAt(), LocalDateTime.now());

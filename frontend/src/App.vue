@@ -118,6 +118,17 @@
             <span class="weather-label">Wind Speed</span>
             <span class="weather-value">{{ (currentWeather.windSpeedMsec || 0).toFixed(1) }} m/s</span>
           </div>
+          <div class="weather-card" v-if="rainfallSummary">
+            <span class="weather-icon">🌧️</span>
+            <span class="weather-label">Rainfall (24h)</span>
+            <span class="weather-value">{{ rainfallSummary.rainfall24hMm.toFixed(1) }} mm</span>
+          </div>
+          <div class="weather-card" v-if="rainfallSummary">
+            <span class="weather-icon">🕒</span>
+            <span class="weather-label">Last sig. rain (&gt;0.3 mm/h)</span>
+            <span class="weather-value" v-if="rainfallSummary.hoursSinceSignificantRain > 0">{{ rainfallSummary.hoursSinceSignificantRain.toFixed(0) }}h ago</span>
+            <span class="weather-value" v-else>None in 72h</span>
+          </div>
         </div>
       </section>
 
@@ -294,54 +305,6 @@
         </div>
       </section>
 
-
-      <!-- Rainfall & Spray Timing -->
-      <section class="spray-timing-section" v-if="rainfallSummary || sprayWindow">
-        <h2 @click="toggleSection('rainfallTiming')" class="section-header" :class="{ collapsed: collapsedSections.rainfallTiming }">
-          <span class="section-toggle">{{ collapsedSections.rainfallTiming ? '▶' : '▼' }}</span>
-          Rainfall & Spray Timing
-        </h2>
-        <div v-show="!collapsedSections.rainfallTiming" class="spray-grid">
-          <!-- Rainfall Information -->
-          <div class="rainfall-card" v-if="rainfallSummary">
-            <h3>Rainfall Summary (24h)</h3>
-            <div class="rainfall-details">
-              <div class="rainfall-metric">
-                <span class="metric-label">Total Rainfall</span>
-                <span class="metric-value">{{ rainfallSummary.rainfall24hMm.toFixed(1) }} mm</span>
-              </div>
-              <div class="rainfall-metric" v-if="rainfallSummary.hoursSinceSignificantRain">
-                <span class="metric-label">Last Significant Rain (>2mm)</span>
-                <span class="metric-value">{{ rainfallSummary.hoursSinceSignificantRain.toFixed(1) }} hours ago</span>
-              </div>
-              <div class="rainfall-metric" v-else>
-                <span class="metric-label">Last Significant Rain</span>
-                <span class="metric-value">None in 72h</span>
-              </div>
-              <p class="rainfall-recommendation">{{ rainfallSummary.recommendation }}</p>
-            </div>
-          </div>
-
-          <!-- Spray Timing Window -->
-          <div class="spray-window-card" v-if="sprayWindow">
-            <h3>Peronospora Spray Window</h3>
-            <div class="spray-details">
-              <div class="spray-strategy" :class="'strategy-' + sprayWindow.strategy.toLowerCase()" :title="sprayWindow.strategyReasoning">
-                <span class="strategy-label">Strategy:</span>
-                <span class="strategy-value">{{ sprayWindow.strategy }}</span>
-              </div>
-              <div class="spray-metric" :title="sprayWindow.preferredTimeReasoning">
-                <span class="metric-label">Preferred Time</span>
-                <span class="metric-value">{{ formatDateTime(sprayWindow.preferredTime) }}</span>
-              </div>
-              <div class="spray-metric" :title="sprayWindow.windowReasoning">
-                <span class="metric-label">Window</span>
-                <span class="metric-value">{{ formatDateTime(sprayWindow.windowStart) }} to {{ formatDateTime(sprayWindow.windowEnd) }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       <!-- Spray Diary -->
       <section class="spray-diary-section">
@@ -1133,7 +1096,7 @@ export default {
       incubationEvents: [],
       latestPheno: null,
       rainfallSummary: null,
-      sprayWindow: null,
+
       sprayRecommendation: null,
       growthStage: null,
       recentSprays: [],
@@ -1187,7 +1150,6 @@ export default {
       collapsedSections: {
         sprayRecommendation: false,
         weather: false,
-        rainfallTiming: false,
         growthStage: false,
         riskAssessment: true,
         wbiPrognosis: false,
@@ -1414,7 +1376,6 @@ export default {
           this.fetchIncubationEvents(),
           this.fetchLatestPheno(),
           this.fetchRainfallSummary(),
-          this.fetchSprayWindow(),
           this.fetchGrowthStage(),
           this.fetchFungicides(),
           this.fetchDiseases(),
@@ -1560,19 +1521,6 @@ export default {
         }
       } catch (err) {
         console.warn('Failed to fetch rainfall summary:', err)
-      }
-    },
-    async fetchSprayWindow() {
-      try {
-        // Get current weather for temp parameter
-        let tempC = this.currentWeather?.temperatureC || 15.0
-        const response = await axios.get(`/api/v1/spray/window/peronospora?currentTemperatureC=${tempC}`)
-        console.log('Spray window response:', response.data)
-        if (response.data) {
-          this.sprayWindow = response.data
-        }
-      } catch (err) {
-        console.warn('Failed to fetch spray window:', err)
       }
     },
     async fetchGrowthStage() {
@@ -2503,107 +2451,6 @@ h2 {
   border-top: 1px solid #eee;
 }
 
-.spray-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.5rem;
-}
-
-.rainfall-card {
-  background: linear-gradient(135deg, #64b5f6 0%, #42a5f5 100%);
-  color: white;
-  border-radius: 8px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 12px rgba(66, 165, 245, 0.2);
-}
-
-.rainfall-card h3 {
-  margin: 0 0 1rem 0;
-  font-size: 1.1rem;
-}
-
-.rainfall-details {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.rainfall-metric {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.metric-label {
-  font-size: 0.9rem;
-  opacity: 0.9;
-}
-
-.metric-value {
-  font-size: 1.1rem;
-  font-weight: 600;
-}
-
-.rainfall-recommendation {
-  margin-top: 0.5rem;
-  font-size: 0.85rem;
-  opacity: 0.95;
-  font-style: italic;
-}
-
-.spray-window-card {
-  background: linear-gradient(135deg, #81c784 0%, #66bb6a 100%);
-  color: white;
-  border-radius: 8px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 12px rgba(102, 187, 106, 0.2);
-}
-
-.spray-window-card h3 {
-  margin: 0 0 1rem 0;
-  font-size: 1.1rem;
-}
-
-.spray-details {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.spray-strategy {
-  background: rgba(255, 255, 255, 0.2);
-  padding: 0.8rem;
-  border-radius: 6px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.strategy-label {
-  font-size: 0.9rem;
-  opacity: 0.9;
-}
-
-.strategy-value {
-  font-size: 1rem;
-  font-weight: 600;
-  padding: 0.3rem 0.8rem;
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
-}
-
-.spray-metric {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.spray-metric:last-child {
-  border-bottom: none;
-}
-
 /* Growth Stage Styles */
 .growth-stage-section {
   background: white;
@@ -2811,17 +2658,13 @@ h2 {
 
 .risk-score[title],
 .risk-optimal[title],
-.risk-badge[title],
-.spray-strategy[title],
-.spray-metric[title] {
+.risk-badge[title] {
   transition: opacity 0.2s ease;
 }
 
 .risk-score[title]:hover,
 .risk-optimal[title]:hover,
-.risk-badge[title]:hover,
-.spray-strategy[title]:hover,
-.spray-metric[title]:hover {
+.risk-badge[title]:hover {
   opacity: 0.8;
 }
 

@@ -53,44 +53,6 @@ public class SprayTimingController {
     }
 
     /**
-     * Get spray timing window for Peronospora based on weather forecast.
-     * 
-     * Considers:
-     * - Current and upcoming weather
-     * - Last significant rain event
-     * - Incubation period (weather-dependent)
-     * - Spray duration (2-3 hours) and dry time requirements (4 hours)
-     * 
-     * Strategy types:
-     * - PREVENTIVE: No rain imminent, spray at 80% of incubation period
-     * - BEFORE_RAIN: Rain forecasted, spray window closes before rain
-     * - AFTER_RAIN: Recent rain event detected, spray opportunity window open
-     */
-    @GetMapping("/window/peronospora")
-    public ResponseEntity<?> getSprayWindowPeronospora(
-            @RequestParam(required = false, defaultValue = "15.0") Double currentTemperatureC) {
-        try {
-            // Create a mock weather object for incubation calculation
-            // In real scenario, this would use actual current weather
-            com.rebenbot.model.WeatherData mockWeather = 
-                    com.rebenbot.model.WeatherData.builder()
-                            .temperatureC(currentTemperatureC)
-                            .build();
-            
-            double incubationHours = sprayTimingService.calculatePeronosporaIncubationPeriod(mockWeather);
-            SprayTimingService.SprayWindow window = sprayTimingService.getOptimalSprayWindow(incubationHours);
-            
-            log.debug("Peronospora spray window: {} strategy, preferred time: {}", 
-                    window.strategy, window.preferredTime);
-            
-            return ResponseEntity.ok(window);
-        } catch (Exception e) {
-            log.error("Error calculating spray window", e);
-            return ResponseEntity.status(500).body(Map.of("status", "ERROR", "message", "Internal server error"));
-        }
-    }
-
-    /**
      * Get next-spray recommendation for a vineyard.
      *
      * Uses WBI prognosis risk levels as the primary driver.  The recommended
