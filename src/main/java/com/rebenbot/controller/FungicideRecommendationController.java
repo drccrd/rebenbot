@@ -15,7 +15,6 @@ import java.util.*;
  */
 @RestController
 @RequestMapping("/v1/fungicides")
-@CrossOrigin(origins = "*")
 @Slf4j
 public class FungicideRecommendationController {
 

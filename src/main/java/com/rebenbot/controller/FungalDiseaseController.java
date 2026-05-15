@@ -11,7 +11,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/v1/diseases")
-@CrossOrigin(origins = "*")
 public class FungalDiseaseController {
 
     private final FungalDiseaseRepository diseaseRepository;

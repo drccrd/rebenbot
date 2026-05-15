@@ -12,7 +12,6 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/v1/spray")
-@CrossOrigin(origins = "*")
 @Slf4j
 public class SprayTimingController {
 
@@ -49,7 +48,7 @@ public class SprayTimingController {
             return ResponseEntity.ok(summary);
         } catch (Exception e) {
             log.error("Error calculating rainfall summary", e);
-            return ResponseEntity.status(500).body("Error calculating rainfall summary: " + e.getMessage());
+            return ResponseEntity.status(500).body(Map.of("status", "ERROR", "message", "Internal server error"));
         }
     }
 
@@ -87,39 +86,7 @@ public class SprayTimingController {
             return ResponseEntity.ok(window);
         } catch (Exception e) {
             log.error("Error calculating spray window", e);
-            return ResponseEntity.status(500).body("Error calculating spray window: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Record a spray application for the vineyard.
-     * This endpoint should be called when fungicide is applied.
-     * 
-     * Note: In production, this would need to:
-     * - Accept vineyard ID
-     * - Update lastSprayDate in database
-     * - Log spray details (product used, dosage, area covered)
-     */
-    @PostMapping("/record")
-    public ResponseEntity<?> recordSprayApplication(
-            @RequestParam Long vineyardId,
-            @RequestParam(required = false) String fungicideProduct) {
-        try {
-            // This would be implemented to update the Vineyard.lastSprayDate
-            // and potentially create a SprayLog entity for historical tracking
-            
-            log.info("Spray recorded for vineyard {} with product: {}", vineyardId, fungicideProduct);
-            
-            Map<String, Object> response = new java.util.LinkedHashMap<>();
-            response.put("message", "Spray application recorded");
-            response.put("timestamp", System.currentTimeMillis());
-            response.put("vineyardId", vineyardId);
-            response.put("fungicide", fungicideProduct);
-            
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            log.error("Error recording spray application", e);
-            return ResponseEntity.status(500).body("Error recording spray: " + e.getMessage());
+            return ResponseEntity.status(500).body(Map.of("status", "ERROR", "message", "Internal server error"));
         }
     }
 
@@ -142,7 +109,7 @@ public class SprayTimingController {
             return ResponseEntity.ok(recommendation);
         } catch (Exception e) {
             log.error("Error calculating spray recommendation for vineyard {}", vineyardId, e);
-            return ResponseEntity.status(500).body("Error calculating spray recommendation: " + e.getMessage());
+            return ResponseEntity.status(500).body(Map.of("status", "ERROR", "message", "Internal server error"));
         }
     }
 

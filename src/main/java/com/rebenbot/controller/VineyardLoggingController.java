@@ -16,7 +16,6 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/v1/vineyard-logs")
-@CrossOrigin(origins = "*")
 @Slf4j
 public class VineyardLoggingController {
 
@@ -70,9 +69,9 @@ public class VineyardLoggingController {
             ));
         } catch (Exception e) {
             log.error("Error recording spray:", e);
-            return ResponseEntity.badRequest().body(Map.of(
+            return ResponseEntity.internalServerError().body(Map.of(
                     "status", "ERROR",
-                    "message", e.getMessage()
+                    "message", "Internal server error"
             ));
         }
     }
@@ -100,9 +99,9 @@ public class VineyardLoggingController {
             ));
         } catch (Exception e) {
             log.error("Error fetching spray history:", e);
-            return ResponseEntity.badRequest().body(Map.of(
+            return ResponseEntity.internalServerError().body(Map.of(
                     "status", "ERROR",
-                    "message", e.getMessage()
+                    "message", "Internal server error"
             ));
         }
     }
@@ -125,9 +124,9 @@ public class VineyardLoggingController {
             ));
         } catch (Exception e) {
             log.error("Error fetching recent sprays:", e);
-            return ResponseEntity.badRequest().body(Map.of(
+            return ResponseEntity.internalServerError().body(Map.of(
                     "status", "ERROR",
-                    "message", e.getMessage()
+                    "message", "Internal server error"
             ));
         }
     }
@@ -149,9 +148,9 @@ public class VineyardLoggingController {
             ));
         } catch (Exception e) {
             log.error("Error fetching frequency analysis:", e);
-            return ResponseEntity.badRequest().body(Map.of(
+            return ResponseEntity.internalServerError().body(Map.of(
                     "status", "ERROR",
-                    "message", e.getMessage()
+                    "message", "Internal server error"
             ));
         }
     }
@@ -199,9 +198,9 @@ public class VineyardLoggingController {
             ));
         } catch (Exception e) {
             log.error("Error creating diary entry:", e);
-            return ResponseEntity.badRequest().body(Map.of(
+            return ResponseEntity.internalServerError().body(Map.of(
                     "status", "ERROR",
-                    "message", e.getMessage()
+                    "message", "Internal server error"
             ));
         }
     }
@@ -221,9 +220,9 @@ public class VineyardLoggingController {
             ));
         } catch (Exception e) {
             log.error("Error retrieving diary entries:", e);
-            return ResponseEntity.badRequest().body(Map.of(
+            return ResponseEntity.internalServerError().body(Map.of(
                     "status", "ERROR",
-                    "message", e.getMessage()
+                    "message", "Internal server error"
             ));
         }
     }
@@ -246,9 +245,9 @@ public class VineyardLoggingController {
             ));
         } catch (Exception e) {
             log.error("Error retrieving diary entries by date range:", e);
-            return ResponseEntity.badRequest().body(Map.of(
+            return ResponseEntity.internalServerError().body(Map.of(
                     "status", "ERROR",
-                    "message", e.getMessage()
+                    "message", "Internal server error"
             ));
         }
     }
@@ -276,9 +275,9 @@ public class VineyardLoggingController {
             ));
         } catch (Exception e) {
             log.error("Error retrieving diary entries by type:", e);
-            return ResponseEntity.badRequest().body(Map.of(
+            return ResponseEntity.internalServerError().body(Map.of(
                     "status", "ERROR",
-                    "message", e.getMessage()
+                    "message", "Internal server error"
             ));
         }
     }
@@ -300,9 +299,9 @@ public class VineyardLoggingController {
             ));
         } catch (Exception e) {
             log.error("Error retrieving diary entries by tag:", e);
-            return ResponseEntity.badRequest().body(Map.of(
+            return ResponseEntity.internalServerError().body(Map.of(
                     "status", "ERROR",
-                    "message", e.getMessage()
+                    "message", "Internal server error"
             ));
         }
     }
@@ -320,9 +319,9 @@ public class VineyardLoggingController {
             ));
         } catch (Exception e) {
             log.error("Error retrieving entry:", e);
-            return ResponseEntity.badRequest().body(Map.of(
+            return ResponseEntity.internalServerError().body(Map.of(
                     "status", "ERROR",
-                    "message", e.getMessage()
+                    "message", "Internal server error"
             ));
         }
     }
@@ -359,9 +358,9 @@ public class VineyardLoggingController {
             ));
         } catch (Exception e) {
             log.error("Error updating entry:", e);
-            return ResponseEntity.badRequest().body(Map.of(
+            return ResponseEntity.internalServerError().body(Map.of(
                     "status", "ERROR",
-                    "message", e.getMessage()
+                    "message", "Internal server error"
             ));
         }
     }
@@ -380,9 +379,9 @@ public class VineyardLoggingController {
             ));
         } catch (Exception e) {
             log.error("Error deleting entry:", e);
-            return ResponseEntity.badRequest().body(Map.of(
+            return ResponseEntity.internalServerError().body(Map.of(
                     "status", "ERROR",
-                    "message", e.getMessage()
+                    "message", "Internal server error"
             ));
         }
     }

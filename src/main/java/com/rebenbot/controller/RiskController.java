@@ -11,7 +11,6 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/v1/risk")
-@CrossOrigin(origins = "*")
 public class RiskController {
 
     private final RiskAssessmentService riskAssessmentService;

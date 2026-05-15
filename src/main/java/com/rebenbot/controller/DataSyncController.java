@@ -24,7 +24,6 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/v1/admin/sync")
-@CrossOrigin(origins = "*")
 @Slf4j
 public class DataSyncController {
 

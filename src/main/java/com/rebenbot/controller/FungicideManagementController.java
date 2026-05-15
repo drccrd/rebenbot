@@ -8,7 +8,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import lombok.extern.slf4j.Slf4j;
 
-import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -18,7 +17,6 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/v1/fungicide-management")
-@CrossOrigin(origins = "*")
 @Slf4j
 public class FungicideManagementController {
 
@@ -282,7 +280,7 @@ public class FungicideManagementController {
             return ResponseEntity.ok(Map.of("status", "CREATED", "id", saved.getId(), "name", saved.getName()));
         } catch (Exception e) {
             log.error("Error creating product", e);
-            return ResponseEntity.badRequest().body(Map.of("status", "ERROR", "message", e.getMessage()));
+            return ResponseEntity.internalServerError().body(Map.of("status", "ERROR", "message", "Internal server error"));
         }
     }
 
@@ -310,7 +308,7 @@ public class FungicideManagementController {
             return ResponseEntity.ok(Map.of("status", "UPDATED", "id", updated.get().getId()));
         } catch (Exception e) {
             log.error("Error updating product {}", id, e);
-            return ResponseEntity.badRequest().body(Map.of("status", "ERROR", "message", e.getMessage()));
+            return ResponseEntity.internalServerError().body(Map.of("status", "ERROR", "message", "Internal server error"));
         }
     }
 
@@ -388,7 +386,7 @@ public class FungicideManagementController {
                     "diseaseId", diseaseId, "recommendedFracCodes", fracCodes));
         } catch (Exception e) {
             log.error("Error saving rotation strategy", e);
-            return ResponseEntity.badRequest().body(Map.of("status", "ERROR", "message", e.getMessage()));
+            return ResponseEntity.internalServerError().body(Map.of("status", "ERROR", "message", "Internal server error"));
         }
     }
 
@@ -442,7 +440,7 @@ public class FungicideManagementController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Error validating rotation", e);
-            return ResponseEntity.badRequest().body(Map.of("status", "ERROR", "message", e.getMessage()));
+            return ResponseEntity.internalServerError().body(Map.of("status", "ERROR", "message", "Internal server error"));
         }
     }
 

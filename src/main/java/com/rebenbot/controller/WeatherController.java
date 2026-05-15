@@ -11,7 +11,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/v1/weather")
-@CrossOrigin(origins = "*")
 @Slf4j
 public class WeatherController {
 

@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS fungicide_target_disease (
 CREATE TABLE IF NOT EXISTS rotation_strategy (
     id BIGSERIAL PRIMARY KEY,
     disease_id BIGINT NOT NULL REFERENCES fungal_diseases(id) ON DELETE CASCADE,
-    recommended_frac_codes VARCHAR(255),
+    recommended_frac_codes VARCHAR(255) NOT NULL,
     min_days_before_repeating_class INTEGER,
     description TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

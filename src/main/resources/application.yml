@@ -29,6 +29,11 @@ server:
   servlet:
     context-path: /api
 
+# CORS — dev only (Vite dev server). In production the frontend is served from
+# the same origin, so no CORS header is needed. Set to empty string to disable.
+cors:
+  allowed-origin: "http://localhost:5173"
+
 # Meteoblue API Configuration
 meteoblue:
   api:

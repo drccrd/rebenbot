@@ -15,7 +15,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/v1/wbi")
-@CrossOrigin(origins = "*")
 @Slf4j
 public class WbiPrognosisController {
 

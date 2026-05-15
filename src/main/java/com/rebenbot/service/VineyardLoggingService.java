@@ -40,18 +40,21 @@ public class VineyardLoggingService {
      * Calculate fungicide dosage based on product specifications and vineyard size.
      */
     private double calculateDosage(FungicideProduct fungicideProduct, double vineyardSizeAres, String growthStageBbch) {
-        double baseDosagePerHundredLiters = 500.0;
-        double waterPerAre = 10.0;
-        double totalWaterVolume = vineyardSizeAres * waterPerAre;
-        double dosageLiters = (baseDosagePerHundredLiters / 100.0) * (totalWaterVolume / 100.0);
-        
+        Double baseDosageMlHa = fungicideProduct.getBaseDosageMlHa();
+        if (baseDosageMlHa == null || baseDosageMlHa <= 0) {
+            log.warn("No baseDosageMlHa set for fungicide '{}', defaulting to 0", fungicideProduct.getName());
+            return 0.0;
+        }
+        // Convert: mL/ha * (ares / 100) = mL, then / 1000 = L
+        double dosageLiters = baseDosageMlHa * (vineyardSizeAres / 100.0) / 1000.0;
+
         if (growthStageBbch != null && (growthStageBbch.startsWith("80") || growthStageBbch.startsWith("81"))) {
             dosageLiters *= 0.8;
         }
-        
-        log.debug("Calculated dosage: {:.2f}L for {} ares, fungicide: {}, growth stage: {}", 
-                dosageLiters, vineyardSizeAres, fungicideProduct.getName(), growthStageBbch);
-        
+
+        log.debug("Calculated dosage: {}L for {} ares, fungicide: {}, growth stage: {}",
+                String.format("%.2f", dosageLiters), vineyardSizeAres, fungicideProduct.getName(), growthStageBbch);
+
         return dosageLiters;
     }
 

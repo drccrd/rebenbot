@@ -12,7 +12,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/v1/vineyards")
-@CrossOrigin(origins = "*")
 public class VineyardController {
 
     private final VineyardRepository vineyardRepository;
