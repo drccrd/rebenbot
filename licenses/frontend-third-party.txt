@@ -1,6 +1,6 @@
 Frontend direct dependency licenses
 
-Dependency | Resolved version | License
+Dependency | Version | License
 --- | --- | ---
 vue | 3.5.32 | MIT
 axios | 1.15.0 | MIT
