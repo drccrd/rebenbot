@@ -80,16 +80,6 @@ npm run dev    # dev server with HMR
 npm run build  # production build
 ```
 
-## License
-
-- Project license: [Apache License 2.0](LICENSE)
-- Third-party dependency inventory and notice guidance: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)
-- Detailed generated dependency inventories:
-  - [licenses/backend-third-party.txt](licenses/backend-third-party.txt)
-  - [licenses/frontend-third-party.txt](licenses/frontend-third-party.txt)
-
-The Apache 2.0 `LICENSE` file already includes the required Section 7 `"AS IS"` warranty disclaimer.
-
 ### Environment Variables
 
 | Variable | Default | Purpose |
@@ -248,3 +238,8 @@ See `src/main/resources/db/migration/V1__initial_schema.sql` for the full schema
 ## License
 
 Apache License 2.0 — see [LICENSE](LICENSE) for details.
+
+- Direct dependency license inventories:
+  - [licenses/backend-third-party.txt](licenses/backend-third-party.txt)
+  - [licenses/frontend-third-party.txt](licenses/frontend-third-party.txt)
+- The Apache 2.0 `LICENSE` file already includes the required Section 7 `"AS IS"` warranty disclaimer.
