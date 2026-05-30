@@ -64,8 +64,8 @@ public class WbiPrognosisController {
             }
             return ResponseEntity.ok("Refresh initiated for " + disease);
         } catch (Exception e) {
-            log.error("Error refreshing prognosis: {}", e.getMessage());
-            return ResponseEntity.status(500).body("Error: " + e.getMessage());
+            log.error("Error refreshing prognosis for {}: {}", disease, e.getMessage());
+            return ResponseEntity.status(500).body("Failed to refresh prognosis");
         }
     }
 
