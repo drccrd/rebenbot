@@ -64,8 +64,6 @@ public class FungicideRecommendationService {
             map.put("id", fungicide.getId());
             map.put("name", fungicide.getName());
             map.put("activeSubstance", fungicide.getActiveSubstance());
-            map.put("manufacturerName", fungicide.getManufacturerName());
-            map.put("concentrationPercent", fungicide.getConcentrationPercent());
             map.put("fracCode", fungicide.getFracCode() != null ? fungicide.getFracCode().getCode() : "");
             map.put("fracDescription", fungicide.getFracCode() != null ? fungicide.getFracCode().getDescription() : "");
             map.put("resistanceRisk", fungicide.getFracCode() != null && fungicide.getFracCode().getResistanceRiskLevel() != null
@@ -126,8 +124,7 @@ public class FungicideRecommendationService {
     private double scoreProduct(FungicideProduct f, FungicideTargetDisease target,
                                 String disease, double riskScore,
                                 boolean approvalActive, boolean phiOk) {
-        // Start from efficacy rating (0-5 → normalised 0-1)
-        double base = target.getEfficacyRating() != null ? target.getEfficacyRating() / 5.0 : 0.5;
+        double base = 0.5;
 
         // At high risk, boost systemic/curative products
         if (riskScore >= 0.75 && isSystemic(f)) base = Math.min(1.0, base + 0.15);
@@ -175,10 +172,6 @@ public class FungicideRecommendationService {
         else if (riskScore >= 0.50) sb.append("HIGH risk: preventive + curative. ");
         else if (riskScore >= 0.25) sb.append("MEDIUM risk: good preventive protection. ");
         else                        sb.append("LOW risk: preventive only. ");
-
-        if (target.getNotes() != null && !target.getNotes().isBlank()) {
-            sb.append(target.getNotes()).append(" ");
-        }
 
         if (!phiOk) {
             sb.append("⚠ PHI VIOLATION: harvest in ").append(daysUntilHarvest)

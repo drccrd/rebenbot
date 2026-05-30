@@ -44,8 +44,6 @@ CREATE TABLE IF NOT EXISTS fungicide_product (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     active_substance VARCHAR(255) NOT NULL,
-    concentration_percent DOUBLE PRECISION,
-    manufacturer_name VARCHAR(255),
     base_dosage_ml_ha DOUBLE PRECISION,
     phi_days INTEGER,
     frac_code_id BIGINT NOT NULL REFERENCES frac_code(id),
@@ -62,8 +60,6 @@ CREATE TABLE IF NOT EXISTS fungicide_target_disease (
     id BIGSERIAL PRIMARY KEY,
     product_id BIGINT NOT NULL REFERENCES fungicide_product(id) ON DELETE CASCADE,
     disease_id BIGINT NOT NULL REFERENCES fungal_diseases(id) ON DELETE CASCADE,
-    efficacy_rating INTEGER CHECK (efficacy_rating >= 0 AND efficacy_rating <= 5),
-    notes TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(product_id, disease_id)
@@ -103,18 +99,6 @@ CREATE TABLE IF NOT EXISTS risk_assessment (
     recommendation TEXT,
     calculation_breakdown TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS growth_stage (
-    id BIGSERIAL PRIMARY KEY,
-    vineyard_id BIGINT NOT NULL REFERENCES vineyards(id) ON DELETE CASCADE,
-    bbch_stage VARCHAR(10),
-    stage_name VARCHAR(100),
-    gdd_accumulated DOUBLE PRECISION,
-    recorded_date DATE,
-    is_manual_override BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS vineyard_log_entry (
@@ -177,7 +161,6 @@ CREATE INDEX idx_log_entry_entry_type ON vineyard_log_entry(vineyard_id, entry_t
 CREATE INDEX idx_log_entry_tags ON vineyard_log_entry(tags);
 CREATE INDEX idx_log_entry_fungicide ON vineyard_log_entry(fungicide_id);
 CREATE INDEX idx_fungicide_target_disease ON fungicide_target_disease(product_id, disease_id);
-CREATE INDEX idx_growth_stage_vineyard ON growth_stage(vineyard_id);
 CREATE INDEX idx_wbi_disease_date ON wbi_prognosis(disease, forecast_date DESC);
 CREATE INDEX idx_wbi_created_at ON wbi_prognosis(created_at);
 

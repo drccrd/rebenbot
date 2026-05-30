@@ -134,7 +134,6 @@ public class FungicideService {
 
     @Transactional
     public Optional<FungicideProduct> updateProduct(Long id, String name, String activeSubstance,
-                                                    Double concentrationPercent, String manufacturerName,
                                                     Double baseDosageMlHa, Integer phiDays, String fracCode) {
         Optional<FungicideProduct> existing = fungicideProductRepository.findById(id);
         if (existing.isEmpty()) {
@@ -143,8 +142,6 @@ public class FungicideService {
         FungicideProduct p = existing.get();
         if (name != null)                  p.setName(name);
         if (activeSubstance != null)       p.setActiveSubstance(activeSubstance);
-        if (concentrationPercent != null)  p.setConcentrationPercent(concentrationPercent);
-        if (manufacturerName != null)      p.setManufacturerName(manufacturerName);
         if (baseDosageMlHa != null)        p.setBaseDosageMlHa(baseDosageMlHa);
         if (phiDays != null)               p.setPhiDays(phiDays);
         if (fracCode != null) {

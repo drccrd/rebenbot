@@ -97,7 +97,6 @@ class FungicideRecommendationServiceTest {
                 .id(1L)
                 .product(unapproved)
                 .disease(peronospora)
-                .efficacyRating(4)
                 .build();
 
         when(fungalDiseaseRepository.findByCommonName("Peronospora")).thenReturn(peronospora);
@@ -124,7 +123,6 @@ class FungicideRecommendationServiceTest {
                 .id(2L)
                 .product(approved)
                 .disease(peronospora)
-                .efficacyRating(4)
                 .build();
 
         when(fungalDiseaseRepository.findByCommonName("Peronospora")).thenReturn(peronospora);
@@ -156,7 +154,6 @@ class FungicideRecommendationServiceTest {
                 .id(3L)
                 .product(product)
                 .disease(peronospora)
-                .efficacyRating(3)
                 .build();
 
         when(fungalDiseaseRepository.findByCommonName("Peronospora")).thenReturn(peronospora);
@@ -186,7 +183,6 @@ class FungicideRecommendationServiceTest {
                 .id(4L)
                 .product(product)
                 .disease(peronospora)
-                .efficacyRating(3)
                 .build();
 
         when(fungalDiseaseRepository.findByCommonName("Peronospora")).thenReturn(peronospora);
@@ -214,9 +210,9 @@ class FungicideRecommendationServiceTest {
                 .bvlApprovedInGermany(true).phiDays(7).fracCode(lowRiskFrac).build();
 
         FungicideTargetDisease lowTarget = FungicideTargetDisease.builder()
-                .id(5L).product(lowEfficacy).disease(peronospora).efficacyRating(1).build();
+                .id(5L).product(lowEfficacy).disease(peronospora).build();
         FungicideTargetDisease highTarget = FungicideTargetDisease.builder()
-                .id(6L).product(highEfficacy).disease(peronospora).efficacyRating(5).build();
+                .id(6L).product(highEfficacy).disease(peronospora).build();
 
         when(fungalDiseaseRepository.findByCommonName("Peronospora")).thenReturn(peronospora);
         when(targetDiseaseRepository.findByDiseaseId(1L)).thenReturn(List.of(lowTarget, highTarget));
@@ -240,7 +236,7 @@ class FungicideRecommendationServiceTest {
         when(fungalDiseaseRepository.findByCommonName("Peronospora")).thenReturn(peronospora);
         when(targetDiseaseRepository.findByDiseaseId(1L)).thenReturn(
                 List.of(FungicideTargetDisease.builder().id(7L).product(product)
-                        .disease(peronospora).efficacyRating(4).build()));
+                        .disease(peronospora).build()));
 
         List<FungicideRecommendationService.FungicideRecommendation> result =
                 service.recommendForDisease("Peronospora", 0.80, 60);
@@ -256,7 +252,7 @@ class FungicideRecommendationServiceTest {
         when(fungalDiseaseRepository.findByCommonName("Peronospora")).thenReturn(peronospora);
         when(targetDiseaseRepository.findByDiseaseId(1L)).thenReturn(
                 List.of(FungicideTargetDisease.builder().id(8L).product(product)
-                        .disease(peronospora).efficacyRating(4).build()));
+                        .disease(peronospora).build()));
 
         List<FungicideRecommendationService.FungicideRecommendation> result =
                 service.recommendForDisease("Peronospora", 0.10, 60);

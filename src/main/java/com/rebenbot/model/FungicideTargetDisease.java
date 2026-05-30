@@ -9,7 +9,6 @@ import java.time.LocalDateTime;
 
 /**
  * Links a fungicide product to a target disease.
- * Includes recommended dosage and efficacy rating for that specific pairing.
  */
 @Entity
 @Table(name = "fungicide_target_disease", uniqueConstraints = {
@@ -32,11 +31,6 @@ public class FungicideTargetDisease {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "disease_id", nullable = false)
     private FungalDisease disease;
-
-    @Column(name = "efficacy_rating")
-    private Integer efficacyRating;  // 0-5 scale, where 5 is most effective
-
-    private String notes;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

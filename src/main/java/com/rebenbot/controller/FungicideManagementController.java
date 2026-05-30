@@ -254,8 +254,7 @@ public class FungicideManagementController {
 
     /**
      * Create a new fungicide product.
-     * Body fields: name, activeSubstance, concentrationPercent, manufacturerName,
-     *              baseDosageMlHa, phiDays, fracCode (code string, e.g. "M1")
+     * Body fields: name, activeSubstance, baseDosageMlHa, phiDays, fracCode (code string, e.g. "M1")
      */
     @PostMapping("/products")
     public ResponseEntity<Map<String, Object>> createProduct(@RequestBody Map<String, Object> body) {
@@ -270,8 +269,6 @@ public class FungicideManagementController {
             FungicideProduct product = FungicideProduct.builder()
                     .name((String) body.get("name"))
                     .activeSubstance((String) body.get("activeSubstance"))
-                    .concentrationPercent(toDouble(body.get("concentrationPercent")))
-                    .manufacturerName((String) body.get("manufacturerName"))
                     .baseDosageMlHa(toDouble(body.get("baseDosageMlHa")))
                     .phiDays(toInt(body.get("phiDays")))
                     .fracCode(fracCode)
@@ -296,8 +293,6 @@ public class FungicideManagementController {
                     id,
                     (String) body.get("name"),
                     (String) body.get("activeSubstance"),
-                    toDouble(body.get("concentrationPercent")),
-                    (String) body.get("manufacturerName"),
                     toDouble(body.get("baseDosageMlHa")),
                     toInt(body.get("phiDays")),
                     (String) body.get("fracCode"));
@@ -453,8 +448,6 @@ public class FungicideManagementController {
         map.put("id", p.getId());
         map.put("name", p.getName());
         map.put("activeSubstance", p.getActiveSubstance());
-        map.put("concentration", p.getConcentrationPercent());
-        map.put("manufacturerName", p.getManufacturerName());
         map.put("fracCode", p.getFracCode() != null ? p.getFracCode().getCode() : "");
         map.put("fracDescription", p.getFracCode() != null ? p.getFracCode().getDescription() : "");
         map.put("resistanceRisk", p.getFracCode() != null && p.getFracCode().getResistanceRiskLevel() != null

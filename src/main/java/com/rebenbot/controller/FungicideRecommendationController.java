@@ -43,8 +43,6 @@ public class FungicideRecommendationController {
                     map.put("id", p.getId());
                     map.put("name", p.getName());
                     map.put("activeSubstance", p.getActiveSubstance());
-                    map.put("concentrationPercent", p.getConcentrationPercent());
-                    map.put("manufacturerName", p.getManufacturerName());
                     map.put("baseDosageMlHa", p.getBaseDosageMlHa());
                     map.put("phiDays", p.getPhiDays());
                     return map;
@@ -73,8 +71,6 @@ public class FungicideRecommendationController {
                     map.put("id", p.getId());
                     map.put("name", p.getName());
                     map.put("activeSubstance", p.getActiveSubstance());
-                    map.put("concentrationPercent", p.getConcentrationPercent());
-                    map.put("manufacturerName", p.getManufacturerName());
                     map.put("baseDosageMlHa", p.getBaseDosageMlHa());
                     map.put("phiDays", p.getPhiDays());
                     return map;

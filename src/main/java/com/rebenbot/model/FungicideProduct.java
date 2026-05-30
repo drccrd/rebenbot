@@ -30,14 +30,8 @@ public class FungicideProduct {
     @Column(name = "active_substance", nullable = false)
     private String activeSubstance;
 
-    @Column(name = "concentration_percent")
-    private Double concentrationPercent;  // Concentration of active substance %
-
-    @Column(name = "manufacturer_name")
-    private String manufacturerName;
-
     @Column(name = "base_dosage_ml_ha")
-    private Double baseDosageMlHa;  // Base dosage in ml/ha
+    private Double baseDosageMlHa;
 
     @Column(name = "phi_days")
     private Integer phiDays;  // Pre-Harvest Interval in days
