@@ -32,7 +32,7 @@ server:
 # CORS — dev only (Vite dev server). In production the frontend is served from
 # the same origin, so no CORS header is needed. Set to empty string to disable.
 cors:
-  allowed-origin: "http://localhost:5173"
+  allowed-origin: "http://localhost:3002"
 
 security:
   api:
