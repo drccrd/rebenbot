@@ -27,8 +27,23 @@
         </div>
       </section>
 
+      <!-- Section Navigation -->
+      <nav class="toc-nav" aria-label="Jump to section">
+        <button v-if="sprayRecommendation" @click="scrollToSection('sprayRecommendation', 'sec-spray-rec')" :class="{ active: activeSection === 'sec-spray-rec' }" class="toc-btn">💊 Spray Rec</button>
+        <button v-if="currentWeather" @click="scrollToSection('weather', 'sec-weather')" :class="{ active: activeSection === 'sec-weather' }" class="toc-btn">🌤 Weather</button>
+        <button v-if="growthStage" @click="scrollToSection('growthStage', 'sec-growth')" :class="{ active: activeSection === 'sec-growth' }" class="toc-btn">🌿 Growth</button>
+        <button v-if="wbiPrognosis.peronospora || wbiPrognosis.oidium" @click="scrollToSection('wbiPrognosis', 'sec-wbi')" :class="{ active: activeSection === 'sec-wbi' }" class="toc-btn">🔬 WBI</button>
+        <button v-if="risks.length > 0" @click="scrollToSection('riskAssessment', 'sec-risk')" :class="{ active: activeSection === 'sec-risk' }" class="toc-btn">⚠️ Risk</button>
+        <button @click="scrollToSection('sprayLog', 'sec-spray-log')" :class="{ active: activeSection === 'sec-spray-log' }" class="toc-btn">📝 Diary</button>
+        <button @click="scrollToSection('seasonPlanner', 'sec-planner')" :class="{ active: activeSection === 'sec-planner' }" class="toc-btn">� Products</button>
+        <button v-if="purchasesConfirmed && sprayPlan.length > 0" @click="scrollToSection('sprayPlan', 'sec-spray-plan')" :class="{ active: activeSection === 'sec-spray-plan' }" class="toc-btn">📅 Plan</button>
+        <button @click="scrollToSection('dosageCalculator', 'sec-dosage')" :class="{ active: activeSection === 'sec-dosage' }" class="toc-btn">⚗️ Dosage</button>
+        <button @click="scrollToSection('dataSync', 'sec-data-sync')" :class="{ active: activeSection === 'sec-data-sync' }" class="toc-btn">🔧 Sync</button>
+        <button @click="scrollToSection('resources', 'sec-resources')" :class="{ active: activeSection === 'sec-resources' }" class="toc-btn">📚 Resources</button>
+      </nav>
+
       <!-- Spray Recommendation -->
-      <section class="spray-rec-section" v-if="sprayRecommendation">
+      <section id="sec-spray-rec" class="spray-rec-section" v-if="sprayRecommendation">
         <h2 @click="toggleSection('sprayRecommendation')" class="section-header" :class="{ collapsed: collapsedSections.sprayRecommendation }">
           <span class="section-toggle">{{ collapsedSections.sprayRecommendation ? '▶' : '▼' }}</span>
           💊 Next Spray Recommendation
@@ -93,7 +108,7 @@
       </section>
 
       <!-- Current Weather -->
-      <section class="weather-section" v-if="currentWeather">        <h2 @click="toggleSection('weather')" class="section-header" :class="{ collapsed: collapsedSections.weather }">
+      <section id="sec-weather" class="weather-section" v-if="currentWeather">        <h2 @click="toggleSection('weather')" class="section-header" :class="{ collapsed: collapsedSections.weather }">
           <span class="section-toggle">{{ collapsedSections.weather ? '▶' : '▼' }}</span>
           Current Weather
         </h2>
@@ -133,7 +148,7 @@
       </section>
 
       <!-- Growth Stage -->
-      <section class="growth-stage-section" v-if="growthStage">
+      <section id="sec-growth" class="growth-stage-section" v-if="growthStage">
         <h2 @click="toggleSection('growthStage')" class="section-header" :class="{ collapsed: collapsedSections.growthStage }">
           <span class="section-toggle">{{ collapsedSections.growthStage ? '▶' : '▼' }}</span>
           Vine Growth Stage
@@ -196,7 +211,7 @@
       </section>
 
       <!-- WBI Freiburg Disease Prognosis -->
-      <section class="wbi-section" v-if="wbiPrognosis.peronospora || wbiPrognosis.oidium">
+      <section id="sec-wbi" class="wbi-section" v-if="wbiPrognosis.peronospora || wbiPrognosis.oidium">
         <h2 @click="toggleSection('wbiPrognosis')" class="section-header" :class="{ collapsed: collapsedSections.wbiPrognosis }">
           <span class="section-toggle">{{ collapsedSections.wbiPrognosis ? '▶' : '▼' }}</span>
           📊 WBI Freiburg Disease Prognosis
@@ -277,7 +292,7 @@
       </section>
 
       <!-- Disease Risk Assessment -->
-      <section class="risk-section" v-if="risks.length > 0">
+      <section id="sec-risk" class="risk-section" v-if="risks.length > 0">
         <h2 @click="toggleSection('riskAssessment')" class="section-header" :class="{ collapsed: collapsedSections.riskAssessment }">
           <span class="section-toggle">{{ collapsedSections.riskAssessment ? '▶' : '▼' }}</span>
           Infection Risk Assessment
@@ -307,7 +322,7 @@
 
 
       <!-- Spray Diary -->
-      <section class="spray-diary-section">
+      <section id="sec-spray-log" class="spray-diary-section">
         <h2 @click="toggleSection('sprayLog')" class="section-header" :class="{ collapsed: collapsedSections.sprayLog }">
           <span class="section-toggle">{{ collapsedSections.sprayLog ? '▶' : '▼' }}</span>
           Spray Diary
@@ -479,7 +494,7 @@
       </section>
 
       <!-- Season Buying Decision (Phase 1) -->
-      <section class="season-planner-section">
+      <section id="sec-planner" class="season-planner-section">
         <h2 @click="toggleSection('seasonPlanner')" class="section-header" :class="{ collapsed: collapsedSections.seasonPlanner }">
           <span class="section-toggle">{{ collapsedSections.seasonPlanner ? '▶' : '▼' }}</span>
           🛒 Season Buying Decision
@@ -702,7 +717,7 @@
       </section>
 
       <!-- My Spray Plan (Phase 2) -->
-      <section class="spray-plan-section" v-if="purchasesConfirmed && sprayPlan.length > 0">
+      <section id="sec-spray-plan" class="spray-plan-section" v-if="purchasesConfirmed && sprayPlan.length > 0">
         <h2 @click="toggleSection('sprayPlan')" class="section-header" :class="{ collapsed: collapsedSections.sprayPlan }">
           <span class="section-toggle">{{ collapsedSections.sprayPlan ? '▶' : '▼' }}</span>
           📅 My Spray Plan
@@ -787,7 +802,7 @@
       </section>
 
       <!-- Dosage Calculator -->
-      <section class="dosage-calculator-section">
+      <section id="sec-dosage" class="dosage-calculator-section">
         <h2 @click="toggleSection('dosageCalculator')" class="section-header" :class="{ collapsed: collapsedSections.dosageCalculator }">
           <span class="section-toggle">{{ collapsedSections.dosageCalculator ? '▶' : '▼' }}</span>
           ⚗️ Fungicide Dosage Calculator
@@ -882,7 +897,7 @@
       </section>
 
       <!-- Admin: Data Sync -->
-      <section class="data-sync-section">
+      <section id="sec-data-sync" class="data-sync-section">
         <h2 @click="toggleSection('dataSync')" class="section-header" :class="{ collapsed: collapsedSections.dataSync }">
           <span class="section-toggle">{{ collapsedSections.dataSync ? '▶' : '▼' }}</span>
           🔧 Data Sync (Admin)
@@ -935,7 +950,7 @@
       </section>
 
       <!-- External Resources -->
-      <section class="external-resources-section">
+      <section id="sec-resources" class="external-resources-section">
         <h2 @click="toggleSection('resources')" class="section-header" :class="{ collapsed: collapsedSections.resources }">
           <span class="section-toggle">{{ collapsedSections.resources ? '▶' : '▼' }}</span>
           📚 Helpful Resources
@@ -1143,6 +1158,7 @@ export default {
         oidium: { O1: [], O2: [], O3: [], O4: [] }
       },
       purchasesConfirmed: false,
+      activeSection: null,
       collapsedSections: {
         sprayRecommendation: false,
         weather: false,
@@ -1358,6 +1374,23 @@ export default {
   },
   mounted() {
     this.refreshData()
+    this._onScroll = () => {
+      const ids = ['sec-spray-rec','sec-weather','sec-growth','sec-wbi','sec-risk','sec-spray-log','sec-planner','sec-spray-plan','sec-dosage','sec-data-sync','sec-resources']
+      for (const id of ids) {
+        const el = document.getElementById(id)
+        if (el) {
+          const rect = el.getBoundingClientRect()
+          if (rect.top <= 80 && rect.bottom > 80) {
+            this.activeSection = id
+            return
+          }
+        }
+      }
+    }
+    window.addEventListener('scroll', this._onScroll, { passive: true })
+  },
+  beforeUnmount() {
+    if (this._onScroll) window.removeEventListener('scroll', this._onScroll)
   },
   methods: {
     async refreshData() {
@@ -1528,6 +1561,16 @@ export default {
       } catch (err) {
         console.warn('Failed to fetch growth stage:', err)
       }
+    },
+    scrollToSection(sectionKey, sectionId) {
+      if (this.collapsedSections[sectionKey]) {
+        this.collapsedSections[sectionKey] = false
+        if (sectionKey === 'dataSync') this.fetchSyncStatus()
+      }
+      this.$nextTick(() => {
+        const el = document.getElementById(sectionId)
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
     },
     toggleSection(sectionName) {
       this.collapsedSections[sectionName] = !this.collapsedSections[sectionName]
@@ -3676,6 +3719,51 @@ h2 {
 
 .section-header.collapsed .section-toggle {
   transform: rotate(-90deg);
+}
+
+/* Section Navigation (ToC) */
+.toc-nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(6px);
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  scrollbar-width: none;
+}
+
+.toc-nav::-webkit-scrollbar { display: none; }
+
+.toc-btn {
+  flex-shrink: 0;
+  background: #f0f0f5;
+  border: 1px solid #d8d8e8;
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: #444;
+  white-space: nowrap;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.toc-btn:hover {
+  background: #e0e0f0;
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.toc-btn.active {
+  background: #667eea;
+  border-color: #667eea;
+  color: white;
 }
 
 /* Data Sync Section */
