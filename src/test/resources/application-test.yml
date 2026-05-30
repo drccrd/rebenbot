@@ -4,3 +4,6 @@ security:
   api:
     username: test-user
     password: test-password
+
+cors:
+  allowed-origin: http://localhost:5173
