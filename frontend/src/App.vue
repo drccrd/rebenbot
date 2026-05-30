@@ -36,954 +36,25 @@
         <button v-if="risks.length > 0" @click="scrollToSection('riskAssessment', 'sec-risk')" :class="{ active: activeSection === 'sec-risk' }" class="toc-btn">⚠️ Risk</button>
         <button @click="scrollToSection('sprayLog', 'sec-spray-log')" :class="{ active: activeSection === 'sec-spray-log' }" class="toc-btn">📝 Diary</button>
         <button @click="scrollToSection('seasonPlanner', 'sec-planner')" :class="{ active: activeSection === 'sec-planner' }" class="toc-btn">� Products</button>
-        <button v-if="purchasesConfirmed && sprayPlan.length > 0" @click="scrollToSection('sprayPlan', 'sec-spray-plan')" :class="{ active: activeSection === 'sec-spray-plan' }" class="toc-btn">📅 Plan</button>
+        <button v-if="purchasesConfirmed" @click="scrollToSection('sprayPlan', 'sec-spray-plan')" :class="{ active: activeSection === 'sec-spray-plan' }" class="toc-btn">📅 Plan</button>
         <button @click="scrollToSection('dosageCalculator', 'sec-dosage')" :class="{ active: activeSection === 'sec-dosage' }" class="toc-btn">⚗️ Dosage</button>
         <button @click="scrollToSection('dataSync', 'sec-data-sync')" :class="{ active: activeSection === 'sec-data-sync' }" class="toc-btn">🔧 Sync</button>
         <button @click="scrollToSection('resources', 'sec-resources')" :class="{ active: activeSection === 'sec-resources' }" class="toc-btn">📚 Resources</button>
       </nav>
 
-      <!-- Spray Recommendation -->
-      <section id="sec-spray-rec" class="spray-rec-section" v-if="sprayRecommendation">
-        <h2 @click="toggleSection('sprayRecommendation')" class="section-header" :class="{ collapsed: collapsedSections.sprayRecommendation }">
-          <span class="section-toggle">{{ collapsedSections.sprayRecommendation ? '▶' : '▼' }}</span>
-          💊 Next Spray Recommendation
-          <span class="rec-urgency-badge" :class="urgencyClass(sprayRecommendation.urgency)">
-            {{ sprayRecommendation.urgency.replace('_', ' ') }}
-          </span>
-        </h2>
-        <div v-show="!collapsedSections.sprayRecommendation" class="spray-rec-card" :class="urgencyClass(sprayRecommendation.urgency)">
-          <p class="rec-explanation">{{ sprayRecommendation.explanation }}</p>
-
-          <div class="rec-date-row">
-            <div class="rec-date-block">
-              <span class="rec-date-label">Target date</span>
-              <span class="rec-date-value">{{ formatDate(sprayRecommendation.targetDate) }}</span>
-            </div>
-            <div class="rec-date-block">
-              <span class="rec-date-label">Allowable window</span>
-              <span class="rec-date-value">{{ formatDate(sprayRecommendation.windowStart) }} – {{ formatDate(sprayRecommendation.windowEnd) }}</span>
-            </div>
-            <div class="rec-date-block">
-              <span class="rec-date-label">Days until target</span>
-              <span class="rec-date-value">{{ sprayRecommendation.daysUntilTarget }}</span>
-            </div>
-            <div class="rec-date-block" v-if="sprayRecommendation.daysSinceLastSpray !== null">
-              <span class="rec-date-label">Days since last spray</span>
-              <span class="rec-date-value">{{ sprayRecommendation.daysSinceLastSpray }}</span>
-            </div>
-            <div class="rec-date-block">
-              <span class="rec-date-label">Recommended interval</span>
-              <span class="rec-date-value">{{ sprayRecommendation.recommendedIntervalDays }} days</span>
-            </div>
-          </div>
-
-          <div class="rec-wbi-row" v-if="sprayRecommendation.wbiPeronospora || sprayRecommendation.wbiOidium">
-            <div class="rec-wbi-chip" v-if="sprayRecommendation.wbiPeronospora"
-                 :class="sprayRecommendation.wbiPeronospora.riskLevel === 'INFECTION_RISK' ? 'wbi-risk-infection_risk' : 'wbi-risk-no_infection'">
-              <strong>Peronospora</strong>
-              {{ sprayRecommendation.wbiPeronospora.riskLevel }} — {{ (sprayRecommendation.wbiPeronospora.riskScore || 0).toFixed(1) }} dh
-              <span v-if="sprayRecommendation.wbiPeronospora.nextSprayDeadline">
-                · spray by {{ formatDate(sprayRecommendation.wbiPeronospora.nextSprayDeadline) }}
-              </span>
-              <div class="wbi-forecast-date">WBI forecast: {{ formatDate(sprayRecommendation.wbiPeronospora.forecastDate) }}</div>
-            </div>
-            <div class="rec-wbi-chip" v-if="sprayRecommendation.wbiOidium"
-                 :class="sprayRecommendation.wbiOidium.riskLevel === 'INFECTION_RISK' ? 'wbi-risk-infection_risk' : 'wbi-risk-no_infection'">
-              <strong>Oidium</strong>
-              {{ sprayRecommendation.wbiOidium.riskLevel }} — {{ (sprayRecommendation.wbiOidium.riskScore || 0).toFixed(1) }} %·h
-              <div class="wbi-forecast-date">WBI forecast: {{ formatDate(sprayRecommendation.wbiOidium.forecastDate) }}</div>
-            </div>
-          </div>
-
-          <details class="rec-factors-details">
-            <summary>Driving factors</summary>
-            <dl class="rec-factors-list">
-              <template v-for="(value, key) in sprayRecommendation.drivingFactors" :key="key">
-                <dt>{{ key.replace(/_/g, ' ') }}</dt>
-                <dd>{{ value }}</dd>
-              </template>
-            </dl>
-          </details>
-        </div>
-      </section>
-
-      <!-- Current Weather -->
-      <section id="sec-weather" class="weather-section" v-if="currentWeather">        <h2 @click="toggleSection('weather')" class="section-header" :class="{ collapsed: collapsedSections.weather }">
-          <span class="section-toggle">{{ collapsedSections.weather ? '▶' : '▼' }}</span>
-          Current Weather
-        </h2>
-        <div v-show="!collapsedSections.weather" class="weather-grid">
-          <div class="weather-card">
-            <span class="weather-icon">🌡️</span>
-            <span class="weather-label">Temperature</span>
-            <span class="weather-value">{{ currentWeather.temperatureC }}°C</span>
-          </div>
-          <div class="weather-card">
-            <span class="weather-icon">💧</span>
-            <span class="weather-label">Humidity</span>
-            <span class="weather-value">{{ currentWeather.humidityPercent }}%</span>
-          </div>
-          <div class="weather-card">
-            <span class="weather-icon">🌧️</span>
-            <span class="weather-label">Precipitation</span>
-            <span class="weather-value">{{ currentWeather.precipitationMm }} mm</span>
-          </div>
-          <div class="weather-card">
-            <span class="weather-icon">💨</span>
-            <span class="weather-label">Wind Speed</span>
-            <span class="weather-value">{{ (currentWeather.windSpeedMsec || 0).toFixed(1) }} m/s</span>
-          </div>
-          <div class="weather-card" v-if="rainfallSummary">
-            <span class="weather-icon">🌧️</span>
-            <span class="weather-label">Rainfall (24h)</span>
-            <span class="weather-value">{{ rainfallSummary.rainfall24hMm.toFixed(1) }} mm</span>
-          </div>
-          <div class="weather-card" v-if="rainfallSummary">
-            <span class="weather-icon">🕒</span>
-            <span class="weather-label">Last sig. rain (&gt;0.3 mm/h)</span>
-            <span class="weather-value" v-if="rainfallSummary.hoursSinceSignificantRain > 0">{{ rainfallSummary.hoursSinceSignificantRain.toFixed(0) }}h ago</span>
-            <span class="weather-value" v-else>None in 72h</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- Growth Stage -->
-      <section id="sec-growth" class="growth-stage-section" v-if="growthStage">
-        <h2 @click="toggleSection('growthStage')" class="section-header" :class="{ collapsed: collapsedSections.growthStage }">
-          <span class="section-toggle">{{ collapsedSections.growthStage ? '▶' : '▼' }}</span>
-          Vine Growth Stage
-        </h2>
-        <div v-show="!collapsedSections.growthStage" class="growth-stage-card">
-
-          <!-- Primary: VitiMeteo observed today -->
-          <div v-if="latestPheno" class="gs-vitimeteo-block">
-            <div class="gs-source-line">
-              <span class="gs-source-badge">VitiMeteo Freiburg</span>
-              <span class="gs-source-date">as of {{ formatWbiDate(latestPheno.phenoDate) }}</span>
-            </div>
-            <!-- Current shoot stage (BBCH 11-19 = leaf count) -->
-            <div class="gs-primary-stage">
-              <span class="gs-bbch-badge">BBCH {{ latestPheno.bbchCode }}</span>
-              <span class="gs-stage-label">{{ bbchLabel(latestPheno.bbchCode) }}</span>
-            </div>
-            <!-- Leaf metrics -->
-            <div class="gs-metrics-row">
-              <span v-if="latestPheno.leafCount != null" class="gs-metric">
-                🍃 {{ latestPheno.leafCount.toFixed(0) }} leaves
-              </span>
-              <span v-if="latestPheno.leafAreaCm2 != null" class="gs-metric"
-                    title="Total leaf area per shoot including growing and mature leaves">
-                📐 {{ latestPheno.leafAreaCm2.toFixed(0) }} cm²
-              </span>
-              <span v-if="latestPheno.huglinIndex != null" class="gs-metric"
-                    title="Huglin heliothermique index — cumulative vine heat from April 1">
-                🌡 Huglin {{ latestPheno.huglinIndex.toFixed(0) }}°
-              </span>
-            </div>
-          </div>
-
-          <!-- Inflorescence / susceptibility status -->
-          <div class="gs-infl-block" :class="effectiveBbch >= 53 ? 'gs-infl-active' : 'gs-infl-inactive'">
-            <template v-if="effectiveBbch >= 53">
-              <span class="gs-infl-icon">🍇</span>
-              <div>
-                <div class="gs-infl-title">Inflorescence reached — peak BBCH {{ effectiveBbch }}</div>
-                <div v-if="effectiveBbch <= 79" class="gs-oidium-warning">
-                  ⚠️ Oidium susceptibility window active (BBCH 53–79)
-                </div>
-                <div v-else class="gs-oidium-clear">
-                  ✓ Outside oidium susceptibility window
-                </div>
-              </div>
-            </template>
-            <template v-else>
-              <span class="gs-infl-icon">🌿</span>
-              <div class="gs-infl-title muted">Inflorescence not yet observed (below BBCH 53)</div>
-            </template>
-          </div>
-
-          <!-- GDD reference -->
-          <div v-if="growthStage.currentGdd != null" class="gs-gdd-row" :title="'Growing Degree Days accumulated from April 1 (base 10°C). Used as a local cross-check alongside VitiMeteo.'">
-            📊 Local GDD estimate: {{ growthStage.currentGdd.toFixed(0) }}° → {{ growthStage.shootStageName.replace(/^BBCH \d+ — /, '') }}
-          </div>
-
-        </div>
-      </section>
-
-      <!-- WBI Freiburg Disease Prognosis -->
-      <section id="sec-wbi" class="wbi-section" v-if="wbiPrognosis.peronospora || wbiPrognosis.oidium">
-        <h2 @click="toggleSection('wbiPrognosis')" class="section-header" :class="{ collapsed: collapsedSections.wbiPrognosis }">
-          <span class="section-toggle">{{ collapsedSections.wbiPrognosis ? '▶' : '▼' }}</span>
-          📊 WBI Freiburg Disease Prognosis
-        </h2>
-        <div v-show="!collapsedSections.wbiPrognosis" class="wbi-grid">
-          <!-- Peronospora WBI Prognosis -->
-          <div v-if="wbiPrognosis.peronospora" class="wbi-card wbi-prognosis-card">
-            <div class="wbi-header">
-              <h3>🍂 Peronospora (Downy Mildew)</h3>
-              <span class="wbi-badge" :class="'wbi-risk-' + (wbiPrognosis.peronospora.riskLevel || '').toLowerCase()">
-                {{ wbiPrognosis.peronospora.riskLevel || 'N/A' }}
-              </span>
-            </div>
-            <div class="wbi-details">
-              <p v-if="wbiPrognosis.peronospora.leafWetnessHours || wbiPrognosis.peronospora.riskScore" class="wbi-row">
-                <strong>Leaf Wetness:</strong>
-                {{ (wbiPrognosis.peronospora.leafWetnessHours || 0).toFixed(1) }}h /
-                {{ (wbiPrognosis.peronospora.riskScore || 0).toFixed(1) }}°h
-              </p>
-              <p v-if="wbiPrognosis.peronospora.infectionEventCount !== null && wbiPrognosis.peronospora.infectionEventCount !== undefined" class="wbi-row">
-                <strong>Infections:</strong>
-                {{ wbiPrognosis.peronospora.infectionEventCount }} tracked
-                ({{ wbiPrognosis.peronospora.activeIncubationEvents || 0 }} active) ·
-                {{ wbiPrognosis.peronospora.soilInfectionCount || 0 }} soil ·
-                {{ wbiPrognosis.peronospora.sporulationCount || 0 }} sporulation{{ wbiPrognosis.peronospora.sporulationCount !== 1 ? 's' : '' }}
-              </p>
-              <!-- Per-event incubation progress bars -->
-              <div v-if="incubationEvents.length > 0" class="wbi-incubation-bars">
-                <div v-for="evt in incubationEvents" :key="evt.id" class="incub-bar-row">
-                  <span class="incub-bar-label">{{ formatDateTime(evt.infectionDatetime) }}</span>
-                  <span v-if="isFutureEvent(evt.infectionDatetime)" class="incub-forecast-badge">forecast</span>
-                  <div class="incub-bar-track">
-                    <div class="incub-bar-fill"
-                         :style="{ width: Math.min(evt.incubationPctLatest || 0, 100) + '%' }"
-                         :class="{ 'incub-bar-complete': (evt.incubationPctLatest || 0) >= 100 }"></div>
-                  </div>
-                  <span class="incub-bar-pct">{{ (evt.incubationPctLatest || 0).toFixed(0) }}%</span>
-                </div>
-              </div>
-              <p v-if="wbiPrognosis.peronospora.nextSprayDeadline" class="wbi-row wbi-spray-deadline">
-                <strong>⚠ Spray by:</strong> {{ formatWbiDate(wbiPrognosis.peronospora.nextSprayDeadline) }}
-              </p>
-              <p v-if="wbiPrognosis.peronospora.lastSporulationDate" class="wbi-row">
-                <strong>Incubation ends (est.):</strong> {{ formatWbiDate(wbiPrognosis.peronospora.lastSporulationDate) }}
-              </p>
-              <p class="wbi-forecast-date">
-                <strong>Forecast Date:</strong> {{ formatWbiDate(wbiPrognosis.peronospora.forecastDate) }}
-              </p>
-            </div>
-          </div>
-
-          <!-- Oidium WBI Prognosis -->
-          <div v-if="wbiPrognosis.oidium" class="wbi-card wbi-prognosis-card">
-            <div class="wbi-header">
-              <h3>🌬️ Oidium (Powdery Mildew)</h3>
-              <span class="wbi-badge" :class="'wbi-risk-' + (wbiPrognosis.oidium.riskLevel || '').toLowerCase()">
-                {{ wbiPrognosis.oidium.riskLevel || 'N/A' }}
-              </span>
-            </div>
-            <div class="wbi-details">
-              <p class="wbi-score">
-                <strong>Cumulative Infection Index:</strong> {{ (wbiPrognosis.oidium.riskScore || 0).toFixed(1) }} %·h
-              </p>
-              <p v-if="wbiPrognosis.oidium.ontogeneticIndex !== null && wbiPrognosis.oidium.ontogeneticIndex !== undefined" class="wbi-row"
-                 title="Vine tissue susceptibility factor (0–1). 1.0 = fully susceptible at current growth stage.">
-                <strong>Tissue Susceptibility:</strong> {{ (wbiPrognosis.oidium.ontogeneticIndex || 0).toFixed(2) }}
-              </p>
-              <p v-if="wbiPrognosis.oidium.oidiumDailyValue !== null && wbiPrognosis.oidium.oidiumDailyValue !== undefined" class="wbi-row"
-                 title="Daily infection contribution to the cumulative index (previous day, available end-of-day).">
-                <strong>Yesterday's contribution:</strong> {{ (wbiPrognosis.oidium.oidiumDailyValue || 0).toFixed(3) }} %·h
-              </p>
-              <p class="wbi-forecast-date">
-                <strong>Forecast Date:</strong> {{ formatWbiDate(wbiPrognosis.oidium.forecastDate) }}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Disease Risk Assessment -->
-      <section id="sec-risk" class="risk-section" v-if="risks.length > 0">
-        <h2 @click="toggleSection('riskAssessment')" class="section-header" :class="{ collapsed: collapsedSections.riskAssessment }">
-          <span class="section-toggle">{{ collapsedSections.riskAssessment ? '▶' : '▼' }}</span>
-          Infection Risk Assessment
-        </h2>
-        <div v-show="!collapsedSections.riskAssessment" class="risk-grid">
-          <div 
-            v-for="risk in risks" 
-            :key="risk.id"
-            class="risk-card"
-            :class="'risk-' + risk.riskLevel.toLowerCase()"
-          >
-            <div class="risk-header">
-              <h3>{{ risk.disease.commonName }}</h3>
-              <span class="risk-badge" :title="risk.calculationBreakdown || 'Risk assessment based on current weather conditions'">{{ risk.riskLevel }}</span>
-            </div>
-            <div class="risk-score-bar">
-              <div class="risk-bar" :style="{ width: (risk.riskScore * 100) + '%' }"></div>
-            </div>
-            <div class="risk-details">
-              <p class="risk-score" :title="risk.calculationBreakdown || 'Percentage likelihood of disease development'">Score: {{ (risk.riskScore * 100).toFixed(0) }}%</p>
-              <p class="risk-optimal" :title="risk.calculationBreakdown || 'Calculation factors and weather conditions'">Optimal conditions: {{ formatOptimalConditions(risk.disease) }}</p>
-              <p class="risk-recommendation">{{ risk.recommendation }}</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-
-      <!-- Spray Diary -->
-      <section id="sec-spray-log" class="spray-diary-section">
-        <h2 @click="toggleSection('sprayLog')" class="section-header" :class="{ collapsed: collapsedSections.sprayLog }">
-          <span class="section-toggle">{{ collapsedSections.sprayLog ? '▶' : '▼' }}</span>
-          Spray Diary
-        </h2>
-        <div v-show="!collapsedSections.sprayLog" class="diary-container">
-          <!-- Log New Entry Form -->
-          <div class="log-spray-card">
-            <div class="form-mode-toggle">
-              <button 
-                @click="entryMode = 'spray'"
-                :class="['mode-btn', { active: entryMode === 'spray' }]"
-              >
-                💊 Record Spray
-              </button>
-              <button 
-                @click="entryMode = 'note'"
-                :class="['mode-btn', { active: entryMode === 'note' }]"
-              >
-                📝 Add Diary Note
-              </button>
-            </div>
-
-            <h3 v-if="entryMode === 'spray'">💊 Log Spray Application</h3>
-            <h3 v-else>📝 Add Diary Entry</h3>
-
-            <form @submit.prevent="recordEntry" class="spray-form">
-              <!-- SPRAY MODE FIELDS -->
-              <template v-if="entryMode === 'spray'">
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="fungicide-select">Fungicide <span class="required">*</span></label>
-                    <select id="fungicide-select" v-model="newSpray.fungicideId" required>
-                      <option value="">Select a fungicide...</option>
-                      <option v-for="fung in fungicides" :key="fung.id" :value="fung.id">
-                        {{ fung.name }}
-                      </option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label for="disease-select">Disease Target <span class="required">*</span></label>
-                    <select id="disease-select" v-model="newSpray.diseaseId" required>
-                      <option value="">Select disease...</option>
-                      <option v-for="disease in diseases" :key="disease.id" :value="disease.id">
-                        {{ disease.commonName }}
-                      </option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="spray-date">Application Date & Time <span class="required">*</span></label>
-                    <input id="spray-date" type="datetime-local" v-model="newSpray.applicationDate" required />
-                  </div>
-                  <div class="form-group">
-                    <label for="growth-stage">Growth Stage (BBCH)</label>
-                    <input id="growth-stage" type="text" v-model="newSpray.growthStageBbch" placeholder="e.g., 75" />
-                  </div>
-                </div>
-
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="temp">Temperature (°C)</label>
-                    <input id="temp" type="number" v-model.number="newSpray.temperatureC" step="0.1" />
-                  </div>
-                  <div class="form-group">
-                    <label for="humidity">Humidity (%)</label>
-                    <input id="humidity" type="number" v-model.number="newSpray.humidityPercent" step="0.1" min="0" max="100" />
-                  </div>
-                  <div class="form-group">
-                    <label for="wind">Wind Speed (m/s)</label>
-                    <input id="wind" type="number" v-model.number="newSpray.windSpeedMsec" step="0.1" min="0" />
-                  </div>
-                </div>
-
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="amount">Fungicide Amount Applied (liters) <span class="required">*</span></label>
-                    <input id="amount" type="number" v-model.number="newSpray.amountFungicideAppliedLiters" step="0.01" min="0.01" placeholder="Min 0.01 L (10ml)" required />
-                  </div>
-                </div>
-              </template>
-
-              <!-- DIARY NOTE MODE FIELDS -->
-              <template v-else>
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="note-date">Date & Time <span class="required">*</span></label>
-                    <input id="note-date" type="datetime-local" v-model="newSpray.applicationDate" required />
-                  </div>
-                  <div class="form-group">
-                    <label for="note-type">Entry Type <span class="required">*</span></label>
-                    <select id="note-type" v-model="newSpray.entryType" required>
-                      <option value="">Select type...</option>
-                      <option value="OBSERVATION">Observation</option>
-                      <option value="WEATHER">Weather</option>
-                      <option value="PEST_DISEASE">Pest/Disease</option>
-                      <option value="MAINTENANCE">Maintenance</option>
-                      <option value="HARVEST">Harvest</option>
-                      <option value="OTHER">Other</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="note-title">Title <span class="required">*</span></label>
-                    <input id="note-title" type="text" v-model="newSpray.title" placeholder="e.g., Early budbreak observed" required />
-                  </div>
-                </div>
-
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="note-growth">Growth Stage (BBCH)</label>
-                    <input id="note-growth" type="text" v-model="newSpray.growthStageBbch" placeholder="e.g., 09" />
-                  </div>
-                </div>
-              </template>
-
-              <!-- COMMON FIELDS -->
-              <div class="form-row">
-                <div class="form-group full-width">
-                  <label for="notes">Notes / Description</label>
-                  <textarea id="notes" v-model="newSpray.notes" :placeholder="entryMode === 'spray' ? 'Conditions, application notes, etc.' : 'Detailed observation or notes'"></textarea>
-                </div>
-              </div>
-
-              <div v-if="entryMode === 'note'" class="form-row">
-                <div class="form-group full-width">
-                  <label for="tags">Tags (comma-separated)</label>
-                  <input id="tags" type="text" v-model="newSpray.tags" placeholder="e.g., spring, budbreak, phenology" />
-                </div>
-              </div>
-
-              <button type="submit" :disabled="recordingSpray" class="btn-submit">
-                {{ recordingSpray ? 'Saving...' : (entryMode === 'spray' ? 'Record Spray' : 'Add Note') }}
-              </button>
-            </form>
-          </div>
-
-          <!-- Recent Sprays -->
-          <div class="recent-sprays-card" v-if="recentSprays.length > 0">
-            <h3>📋 Recent Applications (Last 10)</h3>
-            <div class="sprays-list">
-              <div v-for="spray in recentSprays" :key="spray.id" class="spray-item">
-                <div class="spray-header">
-                  <span class="spray-fungicide">{{ spray.fungicide }}</span>
-                  <span class="spray-date">{{ formatDateTime(spray.applicationDate) }}</span>
-                </div>
-                <div class="spray-info">
-                  <span class="info-label">Disease:</span>
-                  <span class="info-value">{{ spray.disease }}</span>
-                </div>
-                <div class="spray-info" v-if="spray.amountAppliedLiters != null">
-                  <span class="info-label">Amount applied:</span>
-                  <span class="info-value">{{ spray.amountAppliedLiters }}L</span>
-                </div>
-                <div class="spray-info" v-if="spray.notes">
-                  <span class="info-label">Notes:</span>
-                  <span class="info-value">{{ spray.notes }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div v-else class="no-sprays">
-            <p>📭 No spray applications recorded yet</p>
-          </div>
-        </div>
-      </section>
-
-      <!-- Season Buying Decision (Phase 1) -->
-      <section id="sec-planner" class="season-planner-section">
-        <h2 @click="toggleSection('seasonPlanner')" class="section-header" :class="{ collapsed: collapsedSections.seasonPlanner }">
-          <span class="section-toggle">{{ collapsedSections.seasonPlanner ? '▶' : '▼' }}</span>
-          🛒 Season Buying Decision
-        </h2>
-        <div v-show="!collapsedSections.seasonPlanner">
-          <div v-if="Object.keys(fungicidesByDisease).length === 0" class="no-data-message">
-            Run <strong>BVL Sync</strong> in the Data Sync section to load approved products first.
-          </div>
-          <template v-else>
-            <div class="planner-config-strip">
-              <div class="config-item">
-                <label>Protect against:</label>
-                <div class="disease-pill-group">
-                  <button :class="['disease-pill', { active: planTargets.peronospora }]" @click="planTargets.peronospora = !planTargets.peronospora">🍂 Peronospora</button>
-                  <button :class="['disease-pill', { active: planTargets.oidium }]" @click="planTargets.oidium = !planTargets.oidium">🌬 Oidium</button>
-                </div>
-              </div>
-              <div class="config-item">
-                <label>Sprays per disease this season: <strong>{{ planSprayCount }}</strong></label>
-                <input type="range" v-model.number="planSprayCount" min="4" max="12" step="1" class="spray-count-slider" />
-                <div class="slider-hint">4 = minimal &nbsp;·&nbsp; 7 = standard (BW recommendation) &nbsp;·&nbsp; 12 = intensive</div>
-              </div>
-            </div>
-            <div v-if="expiringApprovals.length > 0" class="expiry-warning-banner">
-              <div class="expiry-banner-header" @click="collapsedSections.expiryBanner = !collapsedSections.expiryBanner">
-                <strong>⚠ BVL Approval Expiry Alerts — {{ expiringApprovals.length }} product{{ expiringApprovals.length !== 1 ? 's' : '' }} affected (next 120 days)</strong>
-                <span class="expiry-chevron">{{ collapsedSections.expiryBanner ? '▶' : '▼' }}</span>
-              </div>
-              <ul v-show="!collapsedSections.expiryBanner" class="expiry-list">
-                <li v-for="a in expiringApprovals" :key="a.productId">
-                  <strong>{{ a.productName }}</strong> — BVL authorisation expires <strong>{{ a.bvlApprovalExpiry }}</strong>
-                </li>
-              </ul>
-            </div>
-            <!-- Peronospora slots -->
-            <div v-if="planTargets.peronospora" class="disease-slot-block">
-              <h3 class="disease-slot-title">🍂 Peronospora — Rotation Slots</h3>
-              <p class="frac-source">Source: FRAC CAA Working Group &amp; Phenylamide Expert Forum recommendations for <em>Plasmopara viticola</em></p>
-              <div v-for="slot in activePeronSlots" :key="slot.id" class="frac-slot-card">
-                <div class="slot-meta">
-                  <div class="slot-badges">
-                    <span class="slot-pos-badge">{{ slot.label }}</span>
-                    <span v-for="fc in slot.fracCodes" :key="fc" class="frac-code-badge">FRAC {{ fc }}</span>
-                    <span v-if="slot.optional" class="optional-tag">optional</span>
-                  </div>
-                  <div class="slot-title-row">
-                    <strong>{{ slot.name }}</strong>
-                    <span class="slot-uses">Used {{ peronSequence.filter(s => s === slot.id).length }}× this season</span>
-                  </div>
-                  <div class="slot-rule-text">{{ slot.rule }}</div>
-                  <div v-if="slot.warning" class="slot-warning-text">⚠ {{ slot.warning }}</div>
-                </div>
-                <p class="multi-select-hint">Click to select/deselect. Multiple products rotate through this slot.</p>
-                <div class="slot-product-list">
-                  <div v-if="peronProductsForSlot(slot).length === 0" class="no-slot-products">
-                    No products found for FRAC {{ slot.fracCodes.join(' / ') }} linked to Peronospora — run BVL Sync to populate.
-                  </div>
-                  <div
-                    v-for="product in peronProductsForSlot(slot)"
-                    :key="product.id"
-                    class="product-radio-card"
-                    :class="{
-                      selected: selectedSlots.peronospora[slot.id].includes(product.id),
-                      'frac-unverified': product.fracUnknown
-                    }"
-                    @click="toggleSlotProduct('peronospora', slot.id, product.id)"
-                  >
-                    <div class="prc-header">
-                      <span class="prc-name">{{ product.name }}</span>
-                      <span v-if="product.fracUnknown" class="frac-unknown-badge" title="FRAC code not yet resolved from BVL — may fit this slot">FRAC?</span>
-                      <span v-else class="frac-verified-badge">FRAC {{ product.fracCode }}</span>
-                    </div>
-                    <div class="prc-sub">{{ product.activeSubstance }}</div>
-                    <div class="prc-info-grid">
-                      <span v-if="product.baseDosageMlHa && vineyard" class="prc-info-item">
-                        <span class="prc-info-label">Per app:</span>
-                        {{ Math.round(product.baseDosageMlHa * vineyard.sizeAres / 10000) }} mL
-                        <span class="prc-info-sub">({{ product.baseDosageMlHa.toFixed(0) }} mL/ha)</span>
-                      </span>
-                      <span v-if="product.phiDays" class="prc-info-item">
-                        <span class="prc-info-label">PHI:</span> {{ product.phiDays }} days
-                      </span>
-                      <span v-if="product.manufacturerName" class="prc-info-item prc-info-mfg">
-                        {{ product.manufacturerName }}
-                      </span>
-                      <span v-if="product.bvlRegistrationNumber" class="prc-info-item prc-info-reg">
-                        Kennz. {{ product.bvlRegistrationNumber }}
-                      </span>
-                      <span v-if="product.concentration" class="prc-info-item">
-                        <span class="prc-info-label">Conc.:</span> {{ product.concentration }}%
-                      </span>
-                    </div>
-                    <div v-if="expiringApprovals.find(a => a.productId === product.id)" class="prc-expiry">
-                      ⚠ BVL expires {{ expiringApprovals.find(a => a.productId === product.id).bvlApprovalExpiry }}
-                    </div>
-                    <div class="prc-selected-check" v-if="selectedSlots.peronospora[slot.id].includes(product.id)">✓ selected</div>
-                  </div>
-                </div>
-                <div v-if="selectedSlots.peronospora[slot.id].length > 0" class="slot-qty-row">
-                  <div v-for="(productId, pi) in selectedSlots.peronospora[slot.id]" :key="productId">
-                    ✓ <strong>{{ getProductName(productId) }}</strong>:
-                    buy {{ calcBuyQtyForProductInSlot(productId, pi, selectedSlots.peronospora[slot.id].length, peronSequence.filter(s => s === slot.id).length) }}
-                    ({{ productUsesInSlot(peronSequence.filter(s => s === slot.id).length, selectedSlots.peronospora[slot.id].length, pi) }} application{{ productUsesInSlot(peronSequence.filter(s => s === slot.id).length, selectedSlots.peronospora[slot.id].length, pi) !== 1 ? 's' : '' }})
-                  </div>
-                </div>
-              </div>
-            </div>
-            <!-- Oidium slots -->
-            <div v-if="planTargets.oidium" class="disease-slot-block">
-              <h3 class="disease-slot-title">🌬 Oidium — Rotation Slots</h3>
-              <p class="frac-source">Source: FRAC SBI Working Group recommendations for <em>Erysiphe necator</em></p>
-              <div v-for="slot in activeOidiumSlots" :key="slot.id" class="frac-slot-card">
-                <div class="slot-meta">
-                  <div class="slot-badges">
-                    <span class="slot-pos-badge">{{ slot.label }}</span>
-                    <span v-for="fc in slot.fracCodes" :key="fc" class="frac-code-badge">FRAC {{ fc }}</span>
-                    <span v-if="slot.optional" class="optional-tag">optional</span>
-                  </div>
-                  <div class="slot-title-row">
-                    <strong>{{ slot.name }}</strong>
-                    <span class="slot-uses">Used {{ oidiumSequence.filter(s => s === slot.id).length }}× this season</span>
-                  </div>
-                  <div class="slot-rule-text">{{ slot.rule }}</div>
-                  <div v-if="slot.warning" class="slot-warning-text">⚠ {{ slot.warning }}</div>
-                </div>
-                <p class="multi-select-hint">Click to select/deselect. Multiple products rotate through this slot.</p>
-                <div class="slot-product-list">
-                  <div v-if="oidiumProductsForSlot(slot).length === 0" class="no-slot-products">
-                    No products found for FRAC {{ slot.fracCodes.join(' / ') }} linked to Oidium — run BVL Sync to populate.
-                  </div>
-                  <div
-                    v-for="product in oidiumProductsForSlot(slot)"
-                    :key="product.id"
-                    class="product-radio-card"
-                    :class="{
-                      selected: selectedSlots.oidium[slot.id].includes(product.id),
-                      'frac-unverified': product.fracUnknown
-                    }"
-                    @click="toggleSlotProduct('oidium', slot.id, product.id)"
-                  >
-                    <div class="prc-header">
-                      <span class="prc-name">{{ product.name }}</span>
-                      <span v-if="product.fracUnknown" class="frac-unknown-badge" title="FRAC code not yet resolved from BVL — may fit this slot">FRAC?</span>
-                      <span v-else class="frac-verified-badge">FRAC {{ product.fracCode }}</span>
-                    </div>
-                    <div class="prc-sub">{{ product.activeSubstance }}</div>
-                    <div class="prc-info-grid">
-                      <span v-if="product.baseDosageMlHa && vineyard" class="prc-info-item">
-                        <span class="prc-info-label">Per app:</span>
-                        {{ Math.round(product.baseDosageMlHa * vineyard.sizeAres / 10000) }} mL
-                        <span class="prc-info-sub">({{ product.baseDosageMlHa.toFixed(0) }} mL/ha)</span>
-                      </span>
-                      <span v-if="product.phiDays" class="prc-info-item">
-                        <span class="prc-info-label">PHI:</span> {{ product.phiDays }} days
-                      </span>
-                      <span v-if="product.manufacturerName" class="prc-info-item prc-info-mfg">
-                        {{ product.manufacturerName }}
-                      </span>
-                      <span v-if="product.bvlRegistrationNumber" class="prc-info-item prc-info-reg">
-                        Kennz. {{ product.bvlRegistrationNumber }}
-                      </span>
-                      <span v-if="product.concentration" class="prc-info-item">
-                        <span class="prc-info-label">Conc.:</span> {{ product.concentration }}%
-                      </span>
-                    </div>
-                    <div v-if="expiringApprovals.find(a => a.productId === product.id)" class="prc-expiry">
-                      ⚠ BVL expires {{ expiringApprovals.find(a => a.productId === product.id).bvlApprovalExpiry }}
-                    </div>
-                    <div class="prc-selected-check" v-if="selectedSlots.oidium[slot.id].includes(product.id)">✓ selected</div>
-                  </div>
-                </div>
-                <div v-if="selectedSlots.oidium[slot.id].length > 0" class="slot-qty-row">
-                  <div v-for="(productId, pi) in selectedSlots.oidium[slot.id]" :key="productId">
-                    ✓ <strong>{{ getProductName(productId) }}</strong>:
-                    buy {{ calcBuyQtyForProductInSlot(productId, pi, selectedSlots.oidium[slot.id].length, oidiumSequence.filter(s => s === slot.id).length) }}
-                    ({{ productUsesInSlot(oidiumSequence.filter(s => s === slot.id).length, selectedSlots.oidium[slot.id].length, pi) }} application{{ productUsesInSlot(oidiumSequence.filter(s => s === slot.id).length, selectedSlots.oidium[slot.id].length, pi) !== 1 ? 's' : '' }})
-                  </div>
-                </div>
-              </div>
-            </div>
-            <!-- Shopping summary + confirm -->
-            <div class="planner-summary-block">
-              <h3>🛒 Your Shopping List</h3>
-              <div v-if="shoppingList.length === 0" class="no-data-message">
-                Select at least one product per active slot above to generate your shopping list.
-              </div>
-              <div v-else>
-                <table class="shopping-table">
-                  <thead>
-                    <tr>
-                      <th>Product</th><th>Active Substance</th><th>FRAC</th><th>Applications</th><th>Buy (total)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="item in shoppingList" :key="item.productId">
-                      <td>
-                        {{ item.productName }}
-                        <div v-if="item.expiringApproval" class="expiry-inline">⚠ BVL expires {{ item.expiringApproval }}</div>
-                      </td>
-                      <td>{{ item.activeSubstance }}</td>
-                      <td><span class="frac-code-badge">{{ item.fracCode }}</span></td>
-                      <td>{{ item.applications }}×</td>
-                      <td>
-                        <strong v-if="item.totalMl">{{ item.totalMl >= 1000 ? (item.totalMl / 1000).toFixed(2) + ' L' : item.totalMl + ' mL' }}</strong>
-                        <span v-else class="qty-unknown">—</span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-                <div class="confirm-block">
-                  <p v-if="purchasesConfirmed" class="confirmed-msg">✅ Purchases confirmed — spray plan generated below.</p>
-                  <button class="btn-confirm" @click="confirmPurchasesAndGeneratePlan">
-                    {{ purchasesConfirmed ? '↻ Update Spray Plan' : '✓ Confirm Purchases & Generate Spray Plan' }}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </template>
-        </div>
-      </section>
-
-      <!-- My Spray Plan (Phase 2) -->
-      <section id="sec-spray-plan" class="spray-plan-section" v-if="purchasesConfirmed && sprayPlan.length > 0">
-        <h2 @click="toggleSection('sprayPlan')" class="section-header" :class="{ collapsed: collapsedSections.sprayPlan }">
-          <span class="section-toggle">{{ collapsedSections.sprayPlan ? '▶' : '▼' }}</span>
-          📅 My Spray Plan
-        </h2>
-        <div v-show="!collapsedSections.sprayPlan">
-          <p class="spray-plan-intro">
-            Generated from your confirmed product selection. One row = one spray application day — both peronospora and oidium products can be tank-mixed in a single pass.
-            Intervals: 9 days early season (April–June), 11 days mid-season, 13 days late season.
-            Adjust based on weather and WBI prognosis above.
-          </p>
-          <div class="spray-plan-table-wrap">
-            <table class="spray-plan-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Target date</th>
-                  <th>🍂 Peronospora product</th>
-                  <th>🌬 Oidium product</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="(event, idx) in sprayPlan"
-                  :key="idx"
-                  :class="{
-                    'plan-past': event.isPast,
-                    'plan-next': event.isNext,
-                    'plan-warning': (event.peron && event.peron.ruleWarning) || (event.oidium && event.oidium.ruleWarning)
-                  }"
-                >
-                  <td class="plan-num">{{ idx + 1 }}</td>
-                  <td class="plan-date">
-                    {{ event.targetDate }}
-                    <span v-if="event.isNext" class="next-badge">NEXT</span>
-                  </td>
-                  <!-- Peronospora cell -->
-                  <td class="plan-disease-cell">
-                    <template v-if="event.peron">
-                      <div class="plan-product-name">{{ event.peron.productName }}</div>
-                      <div class="plan-substance">{{ event.peron.activeSubstance }}</div>
-                      <div class="plan-cell-meta">
-                        <span class="frac-code-badge">FRAC {{ event.peron.fracCode }}</span>
-                        <span v-if="event.peron.qtyMl" class="plan-qty-inline">{{ event.peron.qtyMl }} mL</span>
-                        <span v-else class="qty-unknown">Check label</span>
-                      </div>
-                      <div class="plan-rule-text">{{ event.peron.ruleNote }}</div>
-                    </template>
-                    <span v-else class="plan-no-product">— not selected</span>
-                  </td>
-                  <!-- Oidium cell -->
-                  <td class="plan-disease-cell">
-                    <template v-if="event.oidium">
-                      <div class="plan-product-name">{{ event.oidium.productName }}</div>
-                      <div class="plan-substance">{{ event.oidium.activeSubstance }}</div>
-                      <div class="plan-cell-meta">
-                        <span class="frac-code-badge">FRAC {{ event.oidium.fracCode }}</span>
-                        <span v-if="event.oidium.qtyMl" class="plan-qty-inline">{{ event.oidium.qtyMl }} mL</span>
-                        <span v-else class="qty-unknown">Check label</span>
-                      </div>
-                      <div class="plan-rule-text">{{ event.oidium.ruleNote }}</div>
-                    </template>
-                    <span v-else class="plan-no-product">— not selected</span>
-                  </td>
-                  <td>
-                    <button class="btn-log-spray" @click="prefillSprayDiary(event)" title="Pre-fill spray diary">📝</button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="spray-plan-notes">
-            <strong>Key FRAC rules encoded in this plan:</strong>
-            <ul>
-              <li>Peronospora: CAA (FRAC 40) max 3–4 applications/season — <em>FRAC CAA Working Group 2024</em></li>
-              <li>Peronospora: Phenylamide (FRAC 4) max 4/season, max 2 consecutive, always in mixture — <em>FRAC Phenylamide Expert Forum 2020</em></li>
-              <li>Oidium: DMI/triazole (FRAC 3) max 50% of sprays, max 3 consecutive — <em>FRAC SBI Working Group 2025</em></li>
-              <li>Multisite contacts (FRAC M1, M2, M3, M4) have no FRAC application limit and form the backbone of every program</li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      <!-- Dosage Calculator -->
-      <section id="sec-dosage" class="dosage-calculator-section">
-        <h2 @click="toggleSection('dosageCalculator')" class="section-header" :class="{ collapsed: collapsedSections.dosageCalculator }">
-          <span class="section-toggle">{{ collapsedSections.dosageCalculator ? '▶' : '▼' }}</span>
-          ⚗️ Fungicide Dosage Calculator
-        </h2>
-        <div v-show="!collapsedSections.dosageCalculator" class="calculator-container">
-          <div class="calc-tabs">
-            <button 
-              @click="calcMethod = 'leafwall'" 
-              :class="{ active: calcMethod === 'leafwall' }"
-              class="calc-tab"
-            >
-              📏 Leaf Wall Size
-            </button>
-            <button 
-              @click="calcMethod = 'growthstage'" 
-              :class="{ active: calcMethod === 'growthstage' }"
-              class="calc-tab"
-            >
-              🌱 Growth Stage
-            </button>
-          </div>
-
-          <!-- Method 1: Leaf Wall Size -->
-          <div v-if="calcMethod === 'leafwall'" class="calc-method">
-            <h3>Method 1: Leaf Wall Coverage</h3>
-            <p class="calc-description">Based on leaf wall area (more precise for varying vine sizes)</p>
-            <div class="calc-form">
-              <div class="calc-input-group">
-                <label>Fungicide Concentration (ml/100L):</label>
-                <input type="number" v-model.number="calc.concentration" step="0.1" />
-              </div>
-              <div class="calc-input-group">
-                <label>Leaf Wall Area (m²):</label>
-                <input type="number" v-model.number="calc.leafWallArea" step="1" />
-                <small>Typical: 10-15 m²/are at full canopy</small>
-              </div>
-              <div class="calc-input-group">
-                <label>Application Volume per m² (L/m²):</label>
-                <input type="number" v-model.number="calc.volumePerM2" step="0.01" value="0.4" />
-                <small>Standard: 0.3-0.5 L/m²</small>
-              </div>
-            </div>
-            <div class="calc-result">
-              <div class="result-item">
-                <span class="result-label">Total Spray Volume:</span>
-                <span class="result-value">{{ (calc.leafWallArea * calc.volumePerM2).toFixed(2) }} L</span>
-              </div>
-              <div class="result-item highlight">
-                <span class="result-label">Fungicide Required:</span>
-                <span class="result-value">{{ (calc.concentration * (calc.leafWallArea * calc.volumePerM2) / 100).toFixed(2) }} ml</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Method 2: Growth Stage -->
-          <div v-if="calcMethod === 'growthstage'" class="calc-method">
-            <h3>Method 2: Growth Stage (BBCH) Based</h3>
-            <p class="calc-description">Based on vineyard size and growth stage (standard wine industry method)</p>
-            <div class="calc-form">
-              <div class="calc-input-group">
-                <label>Fungicide Base Dosage (mL/ha):</label>
-                <input type="number" v-model.number="calc.baseDosage" step="1" />
-                <small>Typical: 500–2000 mL/ha. Check product label.</small>
-              </div>
-              <div class="calc-input-group">
-                <label>Vineyard Size (ares):</label>
-                <input type="number" v-model.number="calc.vineyardSize" step="0.1" />
-              </div>
-              <div class="calc-input-group">
-                <label>Growth Stage (BBCH):</label>
-                <select v-model.number="calc.bbch">
-                  <option v-for="s in bbchStages" :key="s.value" :value="s.value">BBCH {{ s.range }} ({{ s.label }})</option>
-                </select>
-              </div>
-            </div>
-            <div class="calc-result">
-              <div class="result-item">
-                <span class="result-label">Standard Spray Volume (400 L/ha):</span>
-                <span class="result-value">{{ (calc.vineyardSize * 4).toFixed(2) }} L</span>
-              </div>
-              <div class="result-item">
-                <span class="result-label">Dosage Adjustment Factor:</span>
-                <span class="result-value">{{ calc.bbch >= 81 ? '0.80x (Post-veraison)' : '1.00x (Standard)' }}</span>
-              </div>
-              <div class="result-item highlight">
-                <span class="result-label">Fungicide Required:</span>
-                <span class="result-value">{{ (calc.baseDosage * calc.vineyardSize / 100 * (calc.bbch >= 81 ? 0.8 : 1.0)).toFixed(2) }} mL</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Admin: Data Sync -->
-      <section id="sec-data-sync" class="data-sync-section">
-        <h2 @click="toggleSection('dataSync')" class="section-header" :class="{ collapsed: collapsedSections.dataSync }">
-          <span class="section-toggle">{{ collapsedSections.dataSync ? '▶' : '▼' }}</span>
-          🔧 Data Sync (Admin)
-        </h2>
-        <div v-show="!collapsedSections.dataSync" class="data-sync-container">
-
-          <!-- BVL PSM-API sync -->
-          <div class="sync-card">
-            <div class="sync-card-header">
-              <span class="sync-icon">🇩🇪</span>
-              <div>
-                <strong>BVL PSM-Register (Germany)</strong>
-                <p class="sync-desc">Loads German product-level authorisations (Zulassungsnummern) from a BVL PSM-Register public API.</p>
-              </div>
-            </div>
-            <div class="sync-status" v-if="syncStatus">
-              <span class="sync-label">Last sync:</span>
-              <span>{{ syncStatus.lastBvlSync || 'never' }}</span>
-              <span v-if="syncStatus.lastBvlSyncResult && syncStatus.lastBvlSyncResult !== 'N/A'" class="sync-result" :class="{ 'sync-error': syncStatus.lastBvlSyncResult.startsWith('ERROR') }">
-                {{ syncStatus.lastBvlSyncResult }}
-              </span>
-            </div>
-            <p class="sync-desc" style="margin-bottom:10px">
-              Fetches German product authorisations directly from the
-              <a href="https://psm-api.bvl.bund.de/" target="_blank" rel="noopener">BVL PSM-API</a>. Runs automatically on the 1st of each month.
-            </p>
-            <button
-              @click="triggerBvlSync"
-              :disabled="syncingBvl"
-              class="btn-sync"
-            >
-              {{ syncingBvl ? 'Syncing…' : 'Sync Now' }}
-            </button>
-            <p v-if="bvlSyncMessage" class="sync-feedback" :class="{ 'sync-feedback-error': bvlSyncMessage.startsWith('Error') }">{{ bvlSyncMessage }}</p>
-          </div>
-
-          <!-- Product counts -->
-          <div v-if="syncStatus && syncStatus.products" class="sync-stats">
-            <div class="sync-stat">
-              <span class="stat-num">{{ syncStatus.products.total }}</span>
-              <span class="stat-label">Total products</span>
-            </div>
-            <div class="sync-stat">
-              <span class="stat-num">{{ syncStatus.products.withBvlVerification }}</span>
-              <span class="stat-label">BVL-verified</span>
-            </div>
-          </div>
-
-        </div>
-      </section>
-
-      <!-- External Resources -->
-      <section id="sec-resources" class="external-resources-section">
-        <h2 @click="toggleSection('resources')" class="section-header" :class="{ collapsed: collapsedSections.resources }">
-          <span class="section-toggle">{{ collapsedSections.resources ? '▶' : '▼' }}</span>
-          📚 Helpful Resources
-        </h2>
-        <div v-show="!collapsedSections.resources" class="resources-grid">
-          <a href="https://www.vitimeteo-bw.de/" target="_blank" class="resource-link" title="Weather-based disease management tool for German viticulture">
-            <span class="resource-icon">🌡️</span>
-            <span class="resource-name">VitiMeteo-BW</span>
-            <span class="resource-desc">Weather-based disease forecasting</span>
-          </a>
-          <a href="https://www.wbi.landwirtschaft-bw.de/" target="_blank" class="resource-link" title="Baden-Württemberg agriculture and viticulture information">
-            <span class="resource-icon">🍇</span>
-            <span class="resource-name">WBI Landwirtschaft</span>
-            <span class="resource-desc">Regional viticulture guidelines</span>
-          </a>
-          <a href="https://www.dlr.de/de/unsere-aufgaben/pflanzliche-erzeugung/rebschutz" target="_blank" class="resource-link" title="State research and advisory center for viticulture">
-            <span class="resource-icon">🔬</span>
-            <span class="resource-name">DLR Rebschutz</span>
-            <span class="resource-desc">Grapevine protection research & advisory</span>
-          </a>
-          <a href="https://www.lfl.bayern.de/rebschutz" target="_blank" class="resource-link" title="Bavarian State Research Center for Agriculture viticulture">
-            <span class="resource-icon">📋</span>
-            <span class="resource-name">LfL Rebschutz</span>
-            <span class="resource-desc">Disease management recommendations</span>
-          </a>
-        </div>
-      </section>
-
-      <!-- Error/Loading States -->
+      <SprayRecommendationSection ref="sprayRecSection" v-if="sprayRecommendation" :spray-recommendation="sprayRecommendation" />
+      <WeatherSection ref="weatherSection" v-if="currentWeather" :current-weather="currentWeather" :rainfall-summary="rainfallSummary" />
+      <GrowthStageSection ref="growthSection" v-if="growthStage" :growth-stage="growthStage" :latest-pheno="latestPheno" />
+      <WbiSection ref="wbiSection" v-if="wbiPrognosis.peronospora || wbiPrognosis.oidium" :wbi-prognosis="wbiPrognosis" :incubation-events="incubationEvents" />
+      <RiskSection ref="riskSection" v-if="risks.length > 0" :risks="risks" />
+      <SprayDiarySection ref="sprayDiarySection" :recent-sprays="recentSprays" :fungicides="fungicides" :diseases="diseases" @spray-recorded="fetchRecentSprays" />
+      <SeasonPlannerSection ref="seasonPlannerSection" :vineyard="vineyard" :fungicides-by-disease="fungicidesByDisease" :diseases="diseases" :expiring-approvals="expiringApprovals" @prefill-diary="handlePrefillDiary" @update:purchases-confirmed="purchasesConfirmed = $event" />
+      <DosageCalculatorSection ref="dosageSection" />
+      <DataSyncSection ref="dataSyncSection" @bvl-sync-complete="handleBvlSyncComplete" />
+      <ResourcesSection ref="resourcesSection" />
       <div v-if="error" class="error-message">
         ⚠️ {{ error }}
       </div>
-
       <div v-if="loading" class="loading">
         Loading data...
       </div>
@@ -994,109 +65,36 @@
     </footer>
   </div>
 </template>
-
 <script>
 import axios from 'axios'
-
-// FRAC rotation slot definitions — based on official FRAC Working Group recommendations
-const PERON_SLOTS = [
-  {
-    id: 'P1', label: 'Slot P1',
-    name: 'Multisite contact backbone',
-    fracCodes: ['M1', 'M3', 'M4'],
-    optional: false,
-    rule: 'No FRAC resistance limit. Forms the backbone of every program — use on every spray not covered by other slots. Copper (M1), dithiocarbamates (M3), phthalimides (M4).',
-    warning: null,
-    ruleShort: 'No FRAC application limit (multisite contact)'
-  },
-  {
-    id: 'P2', label: 'Slot P2',
-    name: 'CAA fungicide — systemic, preventive',
-    fracCodes: ['40'],
-    optional: false,
-    rule: 'FRAC CAA WG 2024: max 3–4 applications/season. Always apply preventively before expected rain. Always alternate with multisite contact partner.',
-    warning: null,
-    ruleShort: 'CAA WG: max 3–4/season, preventive before rain'
-  },
-  {
-    id: 'P3', label: 'Slot P3',
-    name: 'Phenylamide — systemic (optional, high pressure)',
-    fracCodes: ['4'],
-    optional: true,
-    rule: 'FRAC Phenylamide EF 2020: max 2–4 applications/season, never more than 2 consecutive, always in mixture with a partner from a different FRAC group. Use only under high disease pressure.',
-    warning: 'Resistance to FRAC 4 is documented in P. viticola populations in Germany. Use only when high disease pressure justifies it and always in mixture with a non-FRAC-4 partner.',
-    ruleShort: 'Phenylamide EF: max 4/season, max 2 consecutive, always in mixture'
-  },
-  {
-    id: 'P4', label: 'Slot P4',
-    name: 'Phosphonate — systemic, late season (optional)',
-    fracCodes: ['33'],
-    optional: true,
-    rule: 'No FRAC resistance limit. Systemic with curative activity. Useful as a late-season application after the CAA limit is reached, or following heavy infection periods.',
-    warning: null,
-    ruleShort: 'No FRAC application limit — systemic curative'
-  }
-]
-
-const OIDIUM_SLOTS = [
-  {
-    id: 'O1', label: 'Slot O1',
-    name: 'Sulfur backbone',
-    fracCodes: ['M2'],
-    optional: false,
-    rule: 'No FRAC resistance limit. Backbone for powdery mildew throughout the entire season. Do not apply above 28°C (phytotoxic risk, especially under high UV).',
-    warning: null,
-    ruleShort: 'No FRAC application limit — do not spray above 28°C'
-  },
-  {
-    id: 'O2', label: 'Slot O2',
-    name: 'DMI / triazole — sterol biosynthesis inhibitor',
-    fracCodes: ['3'],
-    optional: false,
-    rule: 'FRAC SBI WG 2025: limit to max 50% of total oidium sprays per season. Max 3 consecutive applications of any SBI. Always alternate or mix with a non-SBI fungicide.',
-    warning: null,
-    ruleShort: 'SBI WG: max 50% of sprays, max 3 consecutive applications'
-  },
-  {
-    id: 'O3', label: 'Slot O3',
-    name: 'Amine / morpholine — SBI group (optional)',
-    fracCodes: ['5'],
-    optional: true,
-    rule: 'FRAC SBI WG: cross-resistant with DMI (both belong to the SBI group). Use to replace one DMI application mid-season for rotation. Counts toward the SBI 50% total.',
-    warning: null,
-    ruleShort: 'SBI cross-resistance group — counts with DMI toward the 50% limit'
-  },
-  {
-    id: 'O4', label: 'Slot O4',
-    name: 'Quinoline — key rotation partner (optional)',
-    fracCodes: ['13'],
-    optional: true,
-    rule: 'Key rotation partner for DMIs. Completely different mode of action — breaks SBI selection pressure. Registered specifically for powdery mildew. No cross-resistance with SBI group.',
-    warning: null,
-    ruleShort: 'FRAC 13 — no cross-resistance with DMI or amines'
-  }
-]
-
-// Canonical BBCH growth stage definitions — used by the spray calculator dropdown
-// and bbchLabel() to map any BBCH code to a human-readable description.
-const BBCH_STAGES = [
-  { value: 0,  range: '00–09', label: 'Pre-budburst' },
-  { value: 10, range: '10–19', label: 'Budburst' },
-  { value: 25, range: '25–29', label: '5–9 leaves' },
-  { value: 35, range: '35–39', label: 'Visible flower clusters' },
-  { value: 45, range: '45–49', label: 'Bloom' },
-  { value: 55, range: '55–59', label: 'Fruitset' },
-  { value: 65, range: '65–69', label: 'Berries pea-sized' },
-  { value: 75, range: '75–79', label: 'Véraison beginning' },
-  { value: 81, range: '80–85', label: 'Post-véraison' },
-  { value: 89, range: '89',    label: 'Harvest' },
-]
+import { urgencyClass, formatDate } from './utils/formatters.js'
+import SprayRecommendationSection from './components/SprayRecommendationSection.vue'
+import WeatherSection from './components/WeatherSection.vue'
+import GrowthStageSection from './components/GrowthStageSection.vue'
+import WbiSection from './components/WbiSection.vue'
+import RiskSection from './components/RiskSection.vue'
+import SprayDiarySection from './components/SprayDiarySection.vue'
+import SeasonPlannerSection from './components/SeasonPlannerSection.vue'
+import DosageCalculatorSection from './components/DosageCalculatorSection.vue'
+import DataSyncSection from './components/DataSyncSection.vue'
+import ResourcesSection from './components/ResourcesSection.vue'
 
 export default {
   name: 'App',
+  components: {
+    SprayRecommendationSection,
+    WeatherSection,
+    GrowthStageSection,
+    WbiSection,
+    RiskSection,
+    SprayDiarySection,
+    SeasonPlannerSection,
+    DosageCalculatorSection,
+    DataSyncSection,
+    ResourcesSection
+  },
   data() {
     return {
-      bbchStages: BBCH_STAGES,
       vineyard: null,
       currentWeather: null,
       risks: [],
@@ -1107,7 +105,6 @@ export default {
       incubationEvents: [],
       latestPheno: null,
       rainfallSummary: null,
-
       sprayRecommendation: null,
       growthStage: null,
       recentSprays: [],
@@ -1117,259 +114,11 @@ export default {
       loadingFungicides: false,
       rotationPlans: {},
       expiringApprovals: [],
-      calcMethod: 'leafwall',
-      calc: {
-        concentration: 250,
-        leafWallArea: 12,
-        volumePerM2: 0.4,
-        baseDosage: 1000,
-        vineyardSize: 10,
-        bbch: 55
-      },
-      currentYear: new Date().getFullYear(),
-      entryMode: 'spray',
-      newSpray: {
-        fungicideId: '',
-        diseaseId: '',
-        applicationDate: '',
-        growthStageBbch: '',
-        temperatureC: null,
-        humidityPercent: null,
-        windSpeedMsec: null,
-        amountFungicideAppliedLiters: null,
-        notes: '',
-        title: '',
-        entryType: '',
-        tags: ''
-      },
-      recordingSpray: false,
       loading: false,
       error: null,
       lastUpdate: 'Never',
-      // Collapsible sections state
-      syncStatus: null,
-      syncingBvl: false,
-      bvlSyncMessage: null,
-      // Season planner
-      planTargets: { peronospora: true, oidium: true },
-      planSprayCount: 7,
-      selectedSlots: {
-        peronospora: { P1: [], P2: [], P3: [], P4: [] },
-        oidium: { O1: [], O2: [], O3: [], O4: [] }
-      },
-      purchasesConfirmed: false,
       activeSection: null,
-      collapsedSections: {
-        sprayRecommendation: false,
-        weather: false,
-        growthStage: false,
-        riskAssessment: true,
-        wbiPrognosis: false,
-        sprayLog: false,
-        seasonPlanner: false,
-        sprayPlan: false,
-        expiryBanner: false,
-        dosageCalculator: false,
-        dataSync: true,
-        resources: false
-      }
-    }
-  },
-  computed: {
-    /** Best-known BBCH: max of GDD-based berry stage and vitimeteo max-ever BBCH.
-     *  Vitimeteo alternates between leaf (11-19) and inflorescence (53+) codes;
-     *  once a ≥53 code has been seen the vine stays in the susceptibility window. */
-    effectiveBbch() {
-      const gddBerry = this.growthStage ? (this.growthStage.berryBbch || 0) : 0
-      const phenoMax = this.latestPheno ? (this.latestPheno.maxBbchCode || 0) : 0
-      return Math.max(gddBerry, phenoMax)
-    },
-    peronDiseaseId () {
-      const d = this.diseases.find(d => d.commonName && d.commonName.toLowerCase().includes('peronospora'))
-      return d ? d.id : null
-    },
-    oidiumDiseaseId () {
-      const d = this.diseases.find(d => d.commonName && d.commonName.toLowerCase().includes('oidium'))
-      return d ? d.id : null
-    },
-    activePeronSlots () {
-      return PERON_SLOTS.filter(s => !s.optional || this.planSprayCount >= 6)
-    },
-    activeOidiumSlots () {
-      return OIDIUM_SLOTS.filter(s => !s.optional || this.planSprayCount >= 6)
-    },
-    // Computed spray sequence for peronospora — respects FRAC CAA WG and Phenylamide EF limits
-    peronSequence () {
-      const n = this.planSprayCount
-      const seq = Array(n).fill('P1')
-      if (this.selectedSlots.peronospora.P2.length > 0) {
-        // CAA: place at positions 1, 3, 5 (0-indexed), max 3 per FRAC CAA WG
-        const caaMax = Math.min(3, Math.max(1, Math.floor(n * 0.43)))
-        for (let i = 1, count = 0; i < n && count < caaMax; i += 2, count++) {
-          seq[i] = 'P2'
-        }
-      }
-      if (this.selectedSlots.peronospora.P3.length > 0) {
-        // Phenylamide: mid-season, not consecutive with P2
-        const midIdx = Math.floor(n * 0.57)
-        const targetIdx = seq[midIdx] === 'P2' ? midIdx + 1 : midIdx
-        if (targetIdx < n) seq[targetIdx] = 'P3'
-      }
-      if (this.selectedSlots.peronospora.P4.length > 0) {
-        // Phosphonate: late season — find P1 nearest to n-2
-        const lateIdx = n - 2
-        let best = -1, bestDist = Infinity
-        for (let j = 0; j < n; j++) {
-          if (seq[j] === 'P1') {
-            const d = Math.abs(j - lateIdx)
-            if (d < bestDist) { bestDist = d; best = j }
-          }
-        }
-        if (best >= 0) seq[best] = 'P4'
-      }
-      return seq
-    },
-    // Computed spray sequence for oidium — respects FRAC SBI WG limits
-    oidiumSequence () {
-      const n = this.planSprayCount
-      const seq = Array(n).fill('O1')
-      if (this.selectedSlots.oidium.O2.length > 0) {
-        // DMI: max 40% of sprays, every 3rd position to stay safely under 50%
-        const dmiMax = Math.min(4, Math.floor(n * 0.4))
-        for (let i = 1, count = 0; i < n && count < dmiMax; i += 3, count++) {
-          seq[i] = 'O2'
-        }
-      }
-      if (this.selectedSlots.oidium.O3.length > 0) {
-        // Amine: mid-season — replace the O2 slot nearest to mid-season
-        // (falls back to placing directly at midIdx if no O2 exists yet)
-        const midIdx = Math.floor(n * 0.5)
-        let best = -1, bestDist = Infinity
-        for (let j = 0; j < n; j++) {
-          if (seq[j] === 'O2') {
-            const d = Math.abs(j - midIdx)
-            if (d < bestDist) { bestDist = d; best = j }
-          }
-        }
-        if (best >= 0) {
-          seq[best] = 'O3'
-        } else {
-          // No O2 slots — place at midIdx directly
-          seq[midIdx] = 'O3'
-        }
-      }
-      if (this.selectedSlots.oidium.O4.length > 0) {
-        // Quinoline: late season — find O1 nearest to 70% mark
-        const lateIdx = Math.floor(n * 0.7)
-        let best = -1, bestDist = Infinity
-        for (let j = 0; j < n; j++) {
-          if (seq[j] === 'O1') {
-            const d = Math.abs(j - lateIdx)
-            if (d < bestDist) { bestDist = d; best = j }
-          }
-        }
-        if (best >= 0) seq[best] = 'O4'
-      }
-      return seq
-    },
-    shoppingList () {
-      const list = []
-      const allProducts = Object.values(this.fungicidesByDisease).flat()
-      const addSlots = (activeSlots, selectedSlots, sequence, diseaseLabel) => {
-        for (const slot of activeSlots) {
-          const productIds = selectedSlots[slot.id] || []
-          if (productIds.length === 0) continue
-          const totalUses = sequence.filter(s => s === slot.id).length
-          productIds.forEach((productId, pi) => {
-            const product = allProducts.find(p => p.id === productId)
-            if (!product) return
-            // Distribute uses across products in this slot (round-robin)
-            const thisUses = pi < (totalUses % productIds.length)
-              ? Math.ceil(totalUses / productIds.length)
-              : Math.floor(totalUses / productIds.length)
-            const qtyPerApp = (product.baseDosageMlHa && this.vineyard)
-              ? Math.round(product.baseDosageMlHa * this.vineyard.sizeAres / 10000) : null
-            const totalMl = qtyPerApp ? qtyPerApp * thisUses : null
-            const existing = list.find(i => i.productId === product.id)
-            if (existing) {
-              existing.applications += thisUses
-              if (existing.totalMl !== null && totalMl !== null) existing.totalMl += totalMl
-            } else {
-              list.push({
-                productId: product.id, productName: product.name,
-                activeSubstance: product.activeSubstance,
-                fracCode: product.fracCode && product.fracCode !== 'UNKNOWN' ? product.fracCode : slot.fracCodes[0],
-                applications: thisUses, totalMl,
-                expiringApproval: (this.expiringApprovals.find(a => a.productId === product.id) || {}).bvlApprovalExpiry || null
-              })
-            }
-          })
-        }
-      }
-      if (this.planTargets.peronospora) {
-        addSlots(this.activePeronSlots, this.selectedSlots.peronospora, this.peronSequence)
-      }
-      if (this.planTargets.oidium) {
-        addSlots(this.activeOidiumSlots, this.selectedSlots.oidium, this.oidiumSequence)
-      }
-      return list
-    },
-
-    sprayPlan () {
-      if (!this.purchasesConfirmed) return []
-      const today = new Date()
-      const vineyardAres = (this.vineyard && this.vineyard.sizeAres) || 10
-      const allProducts = Object.values(this.fungicidesByDisease).flat()
-      const getProduct = id => allProducts.find(p => p.id === id)
-      const intervals = [0, 9, 18, 27, 37, 48, 59, 70, 83, 96, 110, 124]
-      const n = this.planSprayCount
-
-      const makeDiseaseEvent = (slotId, allSlots, selectedSlots, diseaseId, sequence, idx) => {
-        const slot = allSlots.find(s => s.id === slotId)
-        if (!slot) return null
-        const productIds = selectedSlots[slotId] || []
-        if (productIds.length === 0) return null
-        const priorUses = sequence.slice(0, idx).filter(s => s === slotId).length
-        const product = getProduct(productIds[priorUses % productIds.length])
-        if (!product) return null
-        return {
-          slotId,
-          productName: product.name, productId: product.id,
-          diseaseId,
-          activeSubstance: product.activeSubstance,
-          fracCode: product.fracCode && product.fracCode !== 'UNKNOWN' ? product.fracCode : slot.fracCodes[0],
-          slotName: slot.name,
-          qtyMl: product.baseDosageMlHa ? Math.round(product.baseDosageMlHa * vineyardAres / 10000) : null,
-          ruleNote: slot.ruleShort, ruleWarning: !!slot.warning
-        }
-      }
-
-      const events = []
-      for (let i = 0; i < n; i++) {
-        const daysOffset = intervals[i] !== undefined ? intervals[i] : i * 10
-        const targetDate = new Date(today.getTime() + daysOffset * 86400000)
-        const peronEvent = this.planTargets.peronospora
-          ? makeDiseaseEvent(this.peronSequence[i], PERON_SLOTS, this.selectedSlots.peronospora, this.peronDiseaseId, this.peronSequence, i)
-          : null
-        const oidiumEvent = this.planTargets.oidium
-          ? makeDiseaseEvent(this.oidiumSequence[i], OIDIUM_SLOTS, this.selectedSlots.oidium, this.oidiumDiseaseId, this.oidiumSequence, i)
-          : null
-        if (peronEvent || oidiumEvent) {
-          const isPast = targetDate < today
-          events.push({
-            idx: i,
-            targetDate: targetDate.toLocaleDateString('de-DE'),
-            targetDateObj: targetDate,
-            peron: peronEvent, oidium: oidiumEvent,
-            isPast, isNext: false
-          })
-        }
-      }
-      let nextFound = false
-      events.forEach(e => {
-        if (!nextFound && !e.isPast) { e.isNext = true; nextFound = true }
-      })
-      return events
+      purchasesConfirmed: false
     }
   },
   mounted() {
@@ -1393,6 +142,47 @@ export default {
     if (this._onScroll) window.removeEventListener('scroll', this._onScroll)
   },
   methods: {
+    // Kept for test compatibility — App.spec.js calls wrapper.vm.urgencyClass() and wrapper.vm.formatDate()
+    urgencyClass,
+    formatDate,
+
+    scrollToSection(sectionKey, sectionId) {
+      const refMap = {
+        sprayRecommendation: 'sprayRecSection',
+        weather: 'weatherSection',
+        growthStage: 'growthSection',
+        wbiPrognosis: 'wbiSection',
+        riskAssessment: 'riskSection',
+        sprayLog: 'sprayDiarySection',
+        seasonPlanner: 'seasonPlannerSection',
+        sprayPlan: 'seasonPlannerSection',
+        dosageCalculator: 'dosageSection',
+        dataSync: 'dataSyncSection',
+        resources: 'resourcesSection'
+      }
+      const ref = this.$refs[refMap[sectionKey]]
+      if (ref) {
+        if (sectionKey === 'sprayPlan') {
+          ref.expandSprayPlan()
+        } else {
+          ref.expand()
+        }
+      }
+      this.$nextTick(() => {
+        const el = document.getElementById(sectionId)
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+    },
+
+    handlePrefillDiary(event) {
+      this.$refs.sprayDiarySection.prefillFromPlan(event)
+    },
+
+    async handleBvlSyncComplete() {
+      await this.fetchFungicides()
+      await this.fetchExpiringApprovals()
+    },
+
     async refreshData() {
       this.loading = true
       this.error = null
@@ -1410,17 +200,14 @@ export default {
           this.fetchDiseases(),
           this.fetchRecentSprays()
         ])
-        // After diseases are loaded, fetch fungicides for each disease
         await this.fetchFungicidesForAllDiseases()
         await Promise.all([
           this.fetchRotationPlans(),
           this.fetchExpiringApprovals()
         ])
-        // Spray recommendation depends on vineyard being loaded first
         await this.fetchSprayRecommendation()
         this.checkAndFireNotification()
         this.lastUpdate = new Date().toLocaleTimeString()
-        this.loadPersistedPlan()
       } catch (err) {
         this.error = `Failed to load data: ${err.message}`
         console.error(err)
@@ -1428,6 +215,7 @@ export default {
         this.loading = false
       }
     },
+
     async fetchVineyard() {
       try {
         const response = await axios.get('/api/v1/vineyards')
@@ -1438,22 +226,17 @@ export default {
         console.warn('Failed to fetch vineyard:', err)
       }
     },
+
     async fetchWeather() {
       try {
-        // First, fetch latest weather
         const response = await axios.get('/api/v1/weather/latest')
-        console.log('Weather response:', response.data)
-        // Backend returns a single object, not an array
         if (response.data && response.data.temperatureC !== undefined) {
           this.currentWeather = response.data
         } else if (response.data && Array.isArray(response.data) && response.data.length > 0) {
           this.currentWeather = response.data[0]
         } else {
-          // If no weather data, trigger a fetch
-          console.log('No weather data, triggering fetch...')
           await axios.post('/api/v1/weather/fetch?days=7')
           const retryResponse = await axios.get('/api/v1/weather/latest')
-          console.log('Weather retry response:', retryResponse.data)
           if (retryResponse.data && retryResponse.data.temperatureC !== undefined) {
             this.currentWeather = retryResponse.data
           } else if (retryResponse.data && Array.isArray(retryResponse.data) && retryResponse.data.length > 0) {
@@ -1464,27 +247,17 @@ export default {
         console.warn('Failed to fetch weather:', err)
       }
     },
+
     async fetchRiskAssessment() {
       try {
-        // Trigger assessment
         await axios.post('/api/v1/risk/assess')
-        // Fetch latest risks
         const response = await axios.get('/api/v1/risk/latest')
-        console.log('Risk response:', response.data)
-        
-        // Backend returns flat object: { "Oidium": {...}, "Peronospora": {...} }
-        // Convert to array format for template
         if (response.data && typeof response.data === 'object') {
-          // Fetch disease data to get german names
           const diseasesResponse = await axios.get('/api/v1/diseases')
           const diseaseMap = {}
           if (diseasesResponse.data && Array.isArray(diseasesResponse.data)) {
-            diseasesResponse.data.forEach(d => {
-              diseaseMap[d.commonName] = d
-            })
+            diseasesResponse.data.forEach(d => { diseaseMap[d.commonName] = d })
           }
-          
-          // Transform flat object to array with disease data
           this.risks = Object.entries(response.data).map(([diseaseName, riskData]) => ({
             id: diseaseName,
             disease: diseaseMap[diseaseName] || { commonName: diseaseName, germanName: diseaseName },
@@ -1494,7 +267,6 @@ export default {
             calculationBreakdown: riskData.calculationBreakdown,
             assessedAt: riskData.assessedAt
           }))
-          console.log('Transformed risks:', this.risks)
         } else if (Array.isArray(response.data)) {
           this.risks = response.data
         }
@@ -1502,188 +274,56 @@ export default {
         console.warn('Failed to fetch risk assessment:', err)
       }
     },
+
     async fetchWbiPrognosis() {
       try {
         const [perResponse, oidResponse] = await Promise.all([
           axios.get('/api/v1/wbi/prognosis/latest?disease=peronospora').catch(() => null),
           axios.get('/api/v1/wbi/prognosis/latest?disease=oidium').catch(() => null)
         ])
-        
-        if (perResponse?.data) {
-          this.wbiPrognosis.peronospora = perResponse.data
-          console.log('Peronospora prognosis:', perResponse.data)
-        }
-        if (oidResponse?.data) {
-          this.wbiPrognosis.oidium = oidResponse.data
-          console.log('Oidium prognosis:', oidResponse.data)
-        }
+        if (perResponse?.data) this.wbiPrognosis.peronospora = perResponse.data
+        if (oidResponse?.data) this.wbiPrognosis.oidium = oidResponse.data
       } catch (err) {
         console.warn('Failed to fetch WBI prognosis:', err)
       }
     },
+
     async fetchIncubationEvents() {
       try {
         const response = await axios.get('/api/v1/wbi/incubation/active')
-        if (Array.isArray(response.data)) {
-          this.incubationEvents = response.data
-        }
+        if (Array.isArray(response.data)) this.incubationEvents = response.data
       } catch (err) {
         console.warn('Failed to fetch incubation events:', err)
       }
     },
+
     async fetchLatestPheno() {
       try {
         const response = await axios.get('/api/v1/wbi/pheno/latest')
-        if (response.data) {
-          this.latestPheno = response.data
-        }
+        if (response.data) this.latestPheno = response.data
       } catch (err) {
         console.warn('Failed to fetch latest pheno:', err)
       }
     },
+
     async fetchRainfallSummary() {
       try {
         const response = await axios.get('/api/v1/spray/rainfall-summary')
-        console.log('Rainfall summary response:', response.data)
-        if (response.data) {
-          this.rainfallSummary = response.data
-        }
+        if (response.data) this.rainfallSummary = response.data
       } catch (err) {
         console.warn('Failed to fetch rainfall summary:', err)
       }
     },
+
     async fetchGrowthStage() {
       try {
         const response = await axios.get('/api/v1/growth-stage/current')
-        if (response.data) {
-          this.growthStage = response.data
-        }
+        if (response.data) this.growthStage = response.data
       } catch (err) {
         console.warn('Failed to fetch growth stage:', err)
       }
     },
-    scrollToSection(sectionKey, sectionId) {
-      if (this.collapsedSections[sectionKey]) {
-        this.collapsedSections[sectionKey] = false
-        if (sectionKey === 'dataSync') this.fetchSyncStatus()
-      }
-      this.$nextTick(() => {
-        const el = document.getElementById(sectionId)
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      })
-    },
-    toggleSection(sectionName) {
-      this.collapsedSections[sectionName] = !this.collapsedSections[sectionName]
-      if (sectionName === 'dataSync' && !this.collapsedSections.dataSync) {
-        this.fetchSyncStatus()
-      }
-    },
-    async fetchSyncStatus() {
-      try {
-        const response = await axios.get('/api/v1/admin/sync/status')
-        this.syncStatus = response.data
-      } catch (err) {
-        console.warn('Failed to fetch sync status:', err)
-      }
-    },
-    async triggerBvlSync() {
-      this.syncingBvl = true
-      this.bvlSyncMessage = null
-      try {
-        const response = await axios.post('/api/v1/admin/sync/bvl-api')
-        this.bvlSyncMessage = response.data.message
-        await this.fetchSyncStatus()
-        await this.fetchFungicides()
-        await this.fetchExpiringApprovals()
-      } catch (err) {
-        this.bvlSyncMessage = 'Error: ' + (err.response?.data?.message || err.message)
-      } finally {
-        this.syncingBvl = false
-      }
-    },
-    formatOptimalConditions(disease) {
-      const commonName = disease?.commonName || disease?.name || ''
-      if (commonName.includes('Peronospora')) {
-        return '10-25°C + 85%+ humidity + wetness'
-      } else if (commonName.includes('Oidium')) {
-        return '15-27°C + 40%+ humidity'
-      }
-      return 'Check thresholds'
-    },
-    isFutureEvent(datetimeArr) {
-      if (!datetimeArr || !Array.isArray(datetimeArr)) return false
-      const [year, month, day, hour = 0, minute = 0, second = 0] = datetimeArr
-      return new Date(year, month - 1, day, hour, minute, second) > new Date()
-    },
-    formatDateTime(isoString) {
-      if (!isoString) return 'N/A'
-      try {
-        // Handle both ISO string and array formats
-        let date
-        if (Array.isArray(isoString)) {
-          // If it's an array [year, month, day, hour, minute, second, nanos]
-          // Jackson omits trailing zeros, so arrays may be 5 elements when seconds = 0
-          const [year, month, day, hour = 0, minute = 0, second = 0] = isoString
-          date = new Date(year, month - 1, day, hour, minute, second)
-        } else {
-          // If it's an ISO string
-          date = new Date(isoString)
-        }
-        
-        if (isNaN(date.getTime())) {
-          return 'Invalid date'
-        }
-        
-        return date.toLocaleString('de-DE', { 
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-          hour: '2-digit', 
-          minute: '2-digit',
-          hour12: false
-        })
-      } catch (e) {
-        console.warn('Error parsing date:', isoString, e)
-        return 'Invalid date'
-      }
-    },
-    /** Maps a BBCH numeric code to a short human-readable description.
-     *  Fine-grained overrides handle exact vitimeteo BBCH-Code series values;
-     *  everything else falls back to the canonical BBCH_STAGES coarse lookup. */
-    bbchLabel(code) {
-      if (!code && code !== 0) return ''
-      if (code >= 11 && code <= 19) return `${code - 10} lea${code - 10 === 1 ? 'f' : 'ves'} unfolded`
-      if (code === 53) return 'Inflorescence clearly visible'
-      if (code === 55) return 'Individual flowers visible'
-      if (code === 57) return 'Flowers separating'
-      // Coarse fallback: highest BBCH_STAGES entry whose value ≤ code
-      const stage = [...BBCH_STAGES].reverse().find(s => s.value <= code)
-      return stage ? stage.label : `BBCH ${code}`
-    },
-    formatWbiDate(dateArray) {
-      if (!dateArray) return 'N/A'
-      try {
-        // Handle array format [year, month, day]
-        if (Array.isArray(dateArray)) {
-          const [year, month, day] = dateArray
-          const date = new Date(year, month - 1, day)
-          
-          if (isNaN(date.getTime())) {
-            return 'Invalid date'
-          }
-          
-          return date.toLocaleDateString(undefined, { 
-            month: 'short', 
-            day: 'numeric', 
-            year: 'numeric'
-          })
-        }
-        return 'Invalid date'
-      } catch (e) {
-        console.warn('Error parsing WBI date:', dateArray, e)
-        return 'Invalid date'
-      }
-    },
+
     async fetchFungicides() {
       try {
         const response = await axios.get('/api/v1/fungicides/all')
@@ -1695,24 +335,22 @@ export default {
         console.warn('Failed to fetch fungicides:', err)
       }
     },
+
     async fetchDiseases() {
       try {
         const response = await axios.get('/api/v1/diseases')
-        if (Array.isArray(response.data)) {
-          this.diseases = response.data
-        }
+        if (Array.isArray(response.data)) this.diseases = response.data
       } catch (err) {
         console.warn('Failed to fetch diseases:', err)
       }
     },
+
     async fetchFungicidesForAllDiseases() {
-      // Fetch fungicides for each disease and store by disease ID
       this.loadingFungicides = true
       try {
         for (const disease of this.diseases) {
           try {
             const response = await axios.get(`/api/v1/fungicide-management/by-disease/${disease.id}`)
-            // Extract fungicides array from the response object
             if (response.data && response.data.fungicides && Array.isArray(response.data.fungicides)) {
               this.fungicidesByDisease[disease.id] = response.data.fungicides
             } else {
@@ -1727,6 +365,7 @@ export default {
         this.loadingFungicides = false
       }
     },
+
     async fetchRotationPlans() {
       for (const disease of this.diseases) {
         try {
@@ -1739,6 +378,7 @@ export default {
         }
       }
     },
+
     async fetchExpiringApprovals() {
       try {
         const response = await axios.get('/api/v1/fungicide-management/approvals/expiring?daysAhead=120')
@@ -1749,7 +389,9 @@ export default {
         console.warn('Failed to fetch expiring approvals:', err)
       }
     },
-    async fetchRecentSprays() {      try {
+
+    async fetchRecentSprays() {
+      try {
         const response = await axios.get('/api/v1/vineyard-logs/recent-sprays/1')
         if (response.data && response.data.sprays) {
           this.recentSprays = response.data.sprays
@@ -1758,22 +400,21 @@ export default {
         console.warn('Failed to fetch recent sprays:', err)
       }
     },
+
     async fetchSprayRecommendation() {
       if (!this.vineyard) return
       try {
         const response = await axios.get(`/api/v1/spray/recommendation?vineyardId=${this.vineyard.id}`)
-        if (response.data) {
-          this.sprayRecommendation = response.data
-        }
+        if (response.data) this.sprayRecommendation = response.data
       } catch (err) {
         console.warn('Failed to fetch spray recommendation:', err)
       }
     },
+
     checkAndFireNotification() {
       if (!this.sprayRecommendation || !this.sprayRecommendation.actionWithin7Days) return
       if (!('Notification' in window)) return
       if (Notification.permission === 'denied') return
-
       const fire = () => {
         const emoji = this.sprayRecommendation.urgency === 'URGENT' ? '🚨' : '⚠️'
         new Notification(`${emoji} Rebenbot: Spray Action Required`, {
@@ -1781,7 +422,6 @@ export default {
           tag: 'spray-reminder'
         })
       }
-
       if (Notification.permission === 'granted') {
         fire()
       } else {
@@ -1789,287 +429,12 @@ export default {
           if (permission === 'granted') fire()
         })
       }
-    },
-    urgencyClass(urgency) {
-      return {
-        'rec-urgent': urgency === 'URGENT',
-        'rec-action': urgency === 'ACTION_RECOMMENDED',
-        'rec-scheduled': urgency === 'SCHEDULED',
-        'rec-monitor': urgency === 'MONITOR'
-      }
-    },
-    formatDate(dateValue) {
-      if (!dateValue) return 'N/A'
-      try {
-        let date
-        if (Array.isArray(dateValue)) {
-          const [year, month, day] = dateValue
-          date = new Date(year, month - 1, day)
-        } else {
-          date = new Date(dateValue)
-        }
-        if (isNaN(date.getTime())) return 'Invalid date'
-        return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
-      } catch (e) {
-        return 'Invalid date'
-      }
-    },
-    async recordEntry() {
-      if (this.entryMode === 'spray') {
-        return this.recordSpray()
-      } else {
-        return this.recordDiaryNote()
-      }
-    },
-    async recordSpray() {
-      if (!this.newSpray.fungicideId || !this.newSpray.diseaseId || !this.newSpray.applicationDate || !this.newSpray.amountFungicideAppliedLiters) {
-        alert('Please fill in all required fields (fungicide, disease, date, amount)')
-        return
-      }
-
-      this.recordingSpray = true
-      try {
-        const payload = {
-          vineyardId: 1,
-          fungicideId: Number(this.newSpray.fungicideId),
-          diseaseId: Number(this.newSpray.diseaseId),
-          applicationDate: this.newSpray.applicationDate,
-          growthStageBbch: this.newSpray.growthStageBbch || null,
-          temperatureC: this.newSpray.temperatureC,
-          humidityPercent: this.newSpray.humidityPercent,
-          windSpeedMsec: this.newSpray.windSpeedMsec,
-          amountFungicideAppliedLiters: this.newSpray.amountFungicideAppliedLiters,
-          notes: this.newSpray.notes
-        }
-
-        const response = await axios.post('/api/v1/vineyard-logs/record-spray', payload)
-        
-        if (response.data && response.data.status === 'SUCCESS') {
-          alert('Spray recorded successfully!')
-          // Reset form
-          this.newSpray = {
-            fungicideId: '',
-            diseaseId: '',
-            applicationDate: '',
-            growthStageBbch: '',
-            temperatureC: null,
-            humidityPercent: null,
-            windSpeedMsec: null,
-            amountFungicideAppliedLiters: null,
-            notes: '',
-            title: '',
-            entryType: '',
-            tags: ''
-          }
-          // Refresh recent sprays
-          await this.fetchRecentSprays()
-        }
-      } catch (err) {
-        console.error('Error recording spray:', err)
-        alert(`Error: ${err.response?.data?.message || err.message}`)
-      } finally {
-        this.recordingSpray = false
-      }
-    },
-    async recordDiaryNote() {
-      if (!this.newSpray.applicationDate || !this.newSpray.title || !this.newSpray.entryType) {
-        alert('Please fill in all required fields')
-        return
-      }
-
-      this.recordingSpray = true
-      try {
-        const payload = {
-          vineyardId: 1,
-          entryDate: this.newSpray.applicationDate,
-          title: this.newSpray.title,
-          description: this.newSpray.notes,
-          entryType: this.newSpray.entryType,
-          growthStageBbch: this.newSpray.growthStageBbch || null,
-          tags: this.newSpray.tags
-        }
-
-        const response = await axios.post('/api/v1/vineyard-logs/create-entry', payload)
-        
-        if (response.data && response.data.status === 'SUCCESS') {
-          alert('Diary entry created successfully!')
-          // Reset form
-          this.newSpray = {
-            fungicideId: '',
-            diseaseId: '',
-            applicationDate: '',
-            growthStageBbch: '',
-            temperatureC: null,
-            humidityPercent: null,
-            windSpeedMsec: null,
-            amountFungicideAppliedLiters: null,
-            notes: '',
-            title: '',
-            entryType: '',
-            tags: ''
-          }
-          // Refresh recent sprays
-          await this.fetchRecentSprays()
-        }
-      } catch (err) {
-        console.error('Error creating diary entry:', err)
-        alert(`Error: ${err.response?.data?.message || err.message}`)
-      } finally {
-        this.recordingSpray = false
-      }
-    },
-
-    // ===== Season Planner methods =====
-
-    peronProductsForSlot (slot) {
-      if (!this.peronDiseaseId) return []
-      const products = this.fungicidesByDisease[this.peronDiseaseId] || []
-      return products
-        .map(p => ({
-          ...p,
-          fracMatched: !!(p.fracCode && p.fracCode !== 'UNKNOWN' && slot.fracCodes.includes(p.fracCode)),
-          fracUnknown: !p.fracCode || p.fracCode === 'UNKNOWN'
-        }))
-        .filter(p => p.fracMatched || p.fracUnknown)
-        .sort((a, b) => {
-          if (a.fracMatched && !b.fracMatched) return -1
-          if (!a.fracMatched && b.fracMatched) return 1
-          if (a.baseDosageMlHa && !b.baseDosageMlHa) return -1
-          if (!a.baseDosageMlHa && b.baseDosageMlHa) return 1
-          return (a.name || '').localeCompare(b.name || '')
-        })
-    },
-
-    oidiumProductsForSlot (slot) {
-      if (!this.oidiumDiseaseId) return []
-      const products = this.fungicidesByDisease[this.oidiumDiseaseId] || []
-      return products
-        .map(p => ({
-          ...p,
-          fracMatched: !!(p.fracCode && p.fracCode !== 'UNKNOWN' && slot.fracCodes.includes(p.fracCode)),
-          fracUnknown: !p.fracCode || p.fracCode === 'UNKNOWN'
-        }))
-        .filter(p => p.fracMatched || p.fracUnknown)
-        .sort((a, b) => {
-          if (a.fracMatched && !b.fracMatched) return -1
-          if (!a.fracMatched && b.fracMatched) return 1
-          if (a.baseDosageMlHa && !b.baseDosageMlHa) return -1
-          if (!a.baseDosageMlHa && b.baseDosageMlHa) return 1
-          return (a.name || '').localeCompare(b.name || '')
-        })
-    },
-
-    toggleSlotProduct (disease, slotId, productId) {
-      const arr = this.selectedSlots[disease][slotId]
-      const idx = arr.indexOf(productId)
-      if (idx >= 0) {
-        arr.splice(idx, 1)
-      } else {
-        arr.push(productId)
-      }
-    },
-
-    getProductName (productId) {
-      const all = Object.values(this.fungicidesByDisease).flat()
-      const p = all.find(p => p.id === productId)
-      return p ? p.name : productId
-    },
-
-    productUsesInSlot (totalUses, totalProducts, productIndex) {
-      if (totalProducts === 0) return 0
-      return productIndex < (totalUses % totalProducts)
-        ? Math.ceil(totalUses / totalProducts)
-        : Math.floor(totalUses / totalProducts)
-    },
-
-    calcBuyQtyForProductInSlot (productId, productIndex, totalProducts, totalUses) {
-      const uses = this.productUsesInSlot(totalUses, totalProducts, productIndex)
-      const all = Object.values(this.fungicidesByDisease).flat()
-      const product = all.find(p => p.id === productId)
-      if (!product || !product.baseDosageMlHa || !this.vineyard) return '—'
-      const qtyPerApp = Math.round(product.baseDosageMlHa * this.vineyard.sizeAres / 10000)
-      const total = qtyPerApp * uses
-      return total >= 1000 ? `${(total / 1000).toFixed(2)} L` : `${total} mL`
-    },
-
-    calcBuyQty (productId, useCount) {
-      const allProducts = Object.values(this.fungicidesByDisease).flat()
-      const product = allProducts.find(p => p.id === productId)
-      if (!product || !product.baseDosageMlHa || !this.vineyard) return '—'
-      const qtyPerApp = Math.round(product.baseDosageMlHa * this.vineyard.sizeAres / 10000)
-      const total = qtyPerApp * useCount
-      return total >= 1000 ? `${(total / 1000).toFixed(2)} L` : `${total} mL`
-    },
-
-    confirmPurchasesAndGeneratePlan () {
-      this.purchasesConfirmed = true
-      try {
-        localStorage.setItem('rebenbot_selectedSlots', JSON.stringify(this.selectedSlots))
-        localStorage.setItem('rebenbot_planConfig', JSON.stringify({
-          planTargets: this.planTargets,
-          planSprayCount: this.planSprayCount
-        }))
-      } catch (e) { /* ignore storage errors */ }
-      this.collapsedSections.sprayPlan = false
-      this.$nextTick(() => {
-        const el = document.querySelector('.spray-plan-section')
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      })
-    },
-
-    loadPersistedPlan () {
-      try {
-        const slotsJson = localStorage.getItem('rebenbot_selectedSlots')
-        const configJson = localStorage.getItem('rebenbot_planConfig')
-        if (slotsJson) {
-          const saved = JSON.parse(slotsJson)
-          // Support old single-value format as well as new array format
-          const toArray = v => Array.isArray(v) ? v : (v ? [v] : [])
-          if (saved.peronospora) {
-            for (const k of Object.keys(saved.peronospora)) {
-              if (this.selectedSlots.peronospora[k] !== undefined) {
-                this.selectedSlots.peronospora[k] = toArray(saved.peronospora[k])
-              }
-            }
-          }
-          if (saved.oidium) {
-            for (const k of Object.keys(saved.oidium)) {
-              if (this.selectedSlots.oidium[k] !== undefined) {
-                this.selectedSlots.oidium[k] = toArray(saved.oidium[k])
-              }
-            }
-          }
-        }
-        if (configJson) {
-          const c = JSON.parse(configJson)
-          if (c.planTargets) Object.assign(this.planTargets, c.planTargets)
-          if (c.planSprayCount) this.planSprayCount = c.planSprayCount
-        }
-        if (slotsJson) {
-          this.purchasesConfirmed = true
-        }
-      } catch (e) { /* ignore */ }
-    },
-
-    prefillSprayDiary (event) {
-      this.entryMode = 'spray'
-      // Pre-fill with peronospora product if available, else oidium
-      const primary = event.peron || event.oidium
-      this.newSpray.fungicideId = (primary && primary.productId) || ''
-      this.newSpray.diseaseId = (primary && primary.diseaseId) || ''
-      const now = new Date()
-      this.newSpray.applicationDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
-      this.collapsedSections.sprayLog = false
-      this.$nextTick(() => {
-        const el = document.querySelector('.spray-diary-section')
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      })
     }
   }
 }
 </script>
 
-<style scoped>
+<style>
 .app {
   min-height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
