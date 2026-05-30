@@ -153,14 +153,14 @@
             </div>
             <!-- Leaf metrics -->
             <div class="gs-metrics-row">
-              <span v-if="latestPheno.leafCount !== null" class="gs-metric">
+              <span v-if="latestPheno.leafCount != null" class="gs-metric">
                 🍃 {{ latestPheno.leafCount.toFixed(0) }} leaves
               </span>
-              <span v-if="latestPheno.leafAreaCm2 !== null" class="gs-metric"
+              <span v-if="latestPheno.leafAreaCm2 != null" class="gs-metric"
                     title="Total leaf area per shoot including growing and mature leaves">
                 📐 {{ latestPheno.leafAreaCm2.toFixed(0) }} cm²
               </span>
-              <span v-if="latestPheno.huglinIndex !== null" class="gs-metric"
+              <span v-if="latestPheno.huglinIndex != null" class="gs-metric"
                     title="Huglin heliothermique index — cumulative vine heat from April 1">
                 🌡 Huglin {{ latestPheno.huglinIndex.toFixed(0) }}°
               </span>
@@ -188,7 +188,7 @@
           </div>
 
           <!-- GDD reference -->
-          <div class="gs-gdd-row" :title="'Growing Degree Days accumulated from April 1 (base 10°C). Used as a local cross-check alongside VitiMeteo.'">
+          <div v-if="growthStage.currentGdd != null" class="gs-gdd-row" :title="'Growing Degree Days accumulated from April 1 (base 10°C). Used as a local cross-check alongside VitiMeteo.'">
             📊 Local GDD estimate: {{ growthStage.currentGdd.toFixed(0) }}° → {{ growthStage.shootStageName.replace(/^BBCH \d+ — /, '') }}
           </div>
 
