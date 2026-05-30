@@ -84,9 +84,12 @@ npm run build  # production build
 
 | Variable | Default | Purpose |
 |---|---|---|
+| `REBENBOT_API_USER` | -- | HTTP Basic Auth username |
+| `REBENBOT_API_PASSWORD` | -- | HTTP Basic Auth password |
 | `METEOBLUE_API_KEY` | -- | Weather data (Meteoblue API) |
-| `DB_PASSWORD` | -- | PostgreSQL password (from docker-compose) |
 | `SPRING_PROFILES_ACTIVE` | default (H2) | Set to `postgres` for PostgreSQL |
+
+> **Authentication:** All endpoints except `GET /api/v1/health` require HTTP Basic Auth using the credentials above.
 
 ### Health Check
 
@@ -132,9 +135,7 @@ Disease thresholds:
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/v1/fungicides/all` | All approved products |
-| `GET` | `/v1/fungicides/{disease}` | Products for a disease |
-| `GET` | `/v1/fungicides/recommend` | Ranked recommendations (`?disease=&riskScore=&daysUntilHarvest=`) |
-| `GET` | `/v1/fungicides/latest-recommendations` | Recommendations from latest risk (`?daysUntilHarvest=`) |
+| `GET` | `/v1/fungicides/latest-recommendations` | Ranked recommendations from latest risk (`?daysUntilHarvest=`) |
 
 ### Fungicide Management
 | Method | Path | Description |
@@ -146,57 +147,62 @@ Disease thresholds:
 | `GET` | `/v1/fungicide-management/rotation-strategy/{diseaseId}` | Rotation strategy |
 | `GET` | `/v1/fungicide-management/rotation-plan/{diseaseId}` | Recommended FRAC rotation sequence |
 | `GET` | `/v1/fungicide-management/approvals/expiring?daysAhead=N` | Expiring approvals |
+| `POST` | `/v1/fungicide-management/products` | Create product |
+| `PUT` | `/v1/fungicide-management/products/{id}` | Update product |
+| `DELETE` | `/v1/fungicide-management/products/{id}` | Delete product |
+| `POST` | `/v1/fungicide-management/rotation-strategy` | Create/update rotation strategy |
+| `DELETE` | `/v1/fungicide-management/rotation-strategy/{id}` | Delete rotation strategy |
 | `POST` | `/v1/fungicide-management/validate-rotation` | Check FRAC rotation compliance |
 
-### Spray Diary
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/v1/spray-diary/record` | Record a spray application |
-| `GET` | `/v1/spray-diary/recent/{vineyardId}` | Last 7 days |
-| `GET` | `/v1/spray-diary/history/{vineyardId}?lastDays=30` | Spray history |
-| `GET` | `/v1/spray-diary/frequency/{vineyardId}?lastDays=30` | Frequency analysis |
+### Vineyard Logs
+Spray diary and general diary entries share the `/v1/vineyard-logs` controller.
 
-### Vineyard Diary
 | Method | Path | Description |
 |---|---|---|
-| `POST` | `/v1/vineyard-diary/create` | Create diary entry |
-| `GET` | `/v1/vineyard-diary/entries/{vineyardId}` | All entries |
-| `GET` | `/v1/vineyard-diary/entries/{vineyardId}/range` | Entries by date range |
-| `GET` | `/v1/vineyard-diary/entries/{vineyardId}/type?type=OBSERVATION` | Entries by type |
-| `GET` | `/v1/vineyard-diary/entries/{vineyardId}/tag?tag=budbreak` | Entries by tag |
-| `GET` | `/v1/vineyard-diary/entry/{entryId}` | Single entry |
-| `PUT` | `/v1/vineyard-diary/entry/{entryId}` | Update entry |
-| `DELETE` | `/v1/vineyard-diary/entry/{entryId}` | Delete entry |
+| `POST` | `/v1/vineyard-logs/record-spray` | Record a spray application |
+| `GET` | `/v1/vineyard-logs/recent-sprays/{vineyardId}` | Recent sprays |
+| `GET` | `/v1/vineyard-logs/spray-history/{vineyardId}?lastDays=30` | Spray history |
+| `GET` | `/v1/vineyard-logs/spray-frequency/{vineyardId}?lastDays=30` | Frequency analysis |
+| `POST` | `/v1/vineyard-logs/create-entry` | Create diary entry |
+| `GET` | `/v1/vineyard-logs/entries/{vineyardId}` | All entries |
+| `GET` | `/v1/vineyard-logs/entries/{vineyardId}/range` | Entries by date range |
+| `GET` | `/v1/vineyard-logs/entries/{vineyardId}/type?type=OBSERVATION` | Entries by type |
+| `GET` | `/v1/vineyard-logs/entries/{vineyardId}/tag?tag=budbreak` | Entries by tag |
+| `GET` | `/v1/vineyard-logs/entry/{entryId}` | Single entry |
+| `PUT` | `/v1/vineyard-logs/entry/{entryId}` | Update entry |
+| `DELETE` | `/v1/vineyard-logs/entry/{entryId}` | Delete entry |
 
 Entry types: `OBSERVATION`, `WEATHER`, `PEST_DISEASE`, `MAINTENANCE`, `HARVEST`, `OTHER`
 
 ### Growth Stage
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/v1/growth-stage/current` | Current BBCH stage |
-| `POST` | `/v1/growth-stage/set-manual?stageName=XX` | Override growth stage |
-| `POST` | `/v1/growth-stage/use-automatic` | Revert to GDD-based calculation |
-| `GET` | `/v1/growth-stage/available-stages` | Available BBCH stages |
+| `GET` | `/v1/growth-stage/current` | Current BBCH stage (GDD-based, in-memory) |
 
 ### Spray Timing
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/v1/spray/rainfall-summary` | 24-h rainfall + timing recommendation |
-| `GET` | `/v1/spray/window/peronospora?currentTemperatureC=15` | Optimal spray window |
+| `GET` | `/v1/spray/rainfall-summary` | 24-h rainfall summary |
+| `GET` | `/v1/spray/recommendation` | Spray timing recommendation |
 
 Strategies: **PREVENTIVE** (no rain expected), **BEFORE_RAIN** (rain forecast within 12 h), **AFTER_RAIN** (recent rain, wait for 4 h drying).
 
 ### WBI Prognosis (vitimeteo-bw.de)
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/v1/wbi-prognosis/...` | WBI Freiburg daily prognosis data |
+| `GET` | `/v1/wbi/prognosis/latest` | Latest prognosis per disease |
+| `GET` | `/v1/wbi/prognosis/history` | Historical prognosis data |
+| `POST` | `/v1/wbi/prognosis/refresh` | Manually trigger prognosis fetch |
+| `GET` | `/v1/wbi/incubation/active` | Active Peronospora incubation events |
+| `GET` | `/v1/wbi/pheno/latest` | Latest phenological stage from vitimeteo |
 
 Data is fetched automatically at 06:00 (Peronospora) and 06:15 (Oidium) daily from vitimeteo-bw.de.
 
 ### Data Sync
 | Method | Path | Description |
 |---|---|---|
-| `POST` | `/v1/data-sync/...` | Trigger BVL fungicide approval sync |
+| `POST` | `/v1/admin/sync/bvl-api` | Trigger BVL fungicide approval sync |
+| `GET` | `/v1/admin/sync/status` | Last sync status and timestamp |
 
 BVL PSM-API is synced automatically at 04:00 on the 1st of each month.
 
