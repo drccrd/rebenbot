@@ -14,7 +14,6 @@ CREATE TABLE IF NOT EXISTS vineyards (
     longitude DOUBLE PRECISION,
     region VARCHAR(255),
     description TEXT,
-    last_spray_date TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -125,19 +124,15 @@ CREATE TABLE IF NOT EXISTS vineyard_log_entry (
     entry_date TIMESTAMP NOT NULL,
     fungicide_id BIGINT REFERENCES fungicide_product(id),
     disease_id BIGINT REFERENCES fungal_diseases(id),
-    dosage_liters_per_are DOUBLE PRECISION,
     amount_fungicide_applied_liters DOUBLE PRECISION,
     temperature_c DOUBLE PRECISION,
     humidity_percent DOUBLE PRECISION,
     wind_speed_msec DOUBLE PRECISION,
-    efficacy_assessment DOUBLE PRECISION,
-    efficacy_notes TEXT,
     title VARCHAR(255),
-    description TEXT,
+    notes TEXT,
     entry_type VARCHAR(50) CHECK (entry_type IN ('OBSERVATION', 'WEATHER', 'PEST_DISEASE', 'MAINTENANCE', 'HARVEST', 'OTHER')),
     tags VARCHAR(500),
     growth_stage_bbch VARCHAR(10),
-    notes TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

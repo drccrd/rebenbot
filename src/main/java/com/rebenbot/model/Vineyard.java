@@ -33,9 +33,6 @@ public class Vineyard {
 
     private String description;
 
-    @Column(name = "last_spray_date")
-    private LocalDateTime lastSprayDate;  // Track when fungicide was last applied
-
     @Column(name = "created_at")
     private LocalDateTime createdAt;
     

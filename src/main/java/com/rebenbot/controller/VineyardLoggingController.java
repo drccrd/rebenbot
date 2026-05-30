@@ -59,9 +59,6 @@ public class VineyardLoggingController {
                     request.getAmountFungicideAppliedLiters(),
                     request.getNotes());
 
-            // Assess effectiveness after recording
-            loggingService.assessSprayEffectiveness(logEntry);
-
             return ResponseEntity.ok(Map.of(
                     "status", "SUCCESS",
                     "message", "Spray application recorded",
@@ -395,19 +392,15 @@ public class VineyardLoggingController {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("id", entry.getId());
         result.put("logType", entry.getLogType());
-        result.put("entryDate", entry.getEntryDate().toString());
+        result.put("applicationDate", entry.getEntryDate().toString());
         result.put("fungicide", entry.getFungicideProduct() != null ? entry.getFungicideProduct().getName() : null);
         result.put("disease", entry.getDisease() != null ? entry.getDisease().getCommonName() : null);
         result.put("growthStageBbch", entry.getGrowthStageBbch() != null ? entry.getGrowthStageBbch() : "N/A");
-        result.put("dosageLitersPerAre", entry.getDosageLitersPerAre() != null ? String.format("%.2f", entry.getDosageLitersPerAre()) : null);
         result.put("amountAppliedLiters", entry.getAmountFungicideAppliedLiters() != null ? entry.getAmountFungicideAppliedLiters() : null);
         result.put("temperatureC", entry.getTemperatureC() != null ? entry.getTemperatureC() : "N/A");
         result.put("humidityPercent", entry.getHumidityPercent() != null ? entry.getHumidityPercent() : "N/A");
         result.put("windSpeedMsec", entry.getWindSpeedMsec() != null ? entry.getWindSpeedMsec() : "N/A");
-        result.put("notes", entry.getDescription() != null ? entry.getDescription() : "");
-        result.put("efficacyAssessment", entry.getEfficacyAssessment() != null ? 
-                String.format("%.0f%%", entry.getEfficacyAssessment() * 100) : "Pending");
-        result.put("efficacyNotes", entry.getEfficacyNotes() != null ? entry.getEfficacyNotes() : "");
+        result.put("notes", entry.getNotes() != null ? entry.getNotes() : "");
         result.put("createdAt", entry.getCreatedAt());
         return result;
     }
@@ -422,7 +415,7 @@ public class VineyardLoggingController {
         result.put("logType", entry.getLogType());
         result.put("entryDate", entry.getEntryDate().toString());
         result.put("title", entry.getTitle() != null ? entry.getTitle() : "");
-        result.put("description", entry.getDescription() != null ? entry.getDescription() : "");
+        result.put("description", entry.getNotes() != null ? entry.getNotes() : "");
         result.put("diaryEntryType", entry.getDiaryEntryType() != null ? entry.getDiaryEntryType() : "");
         result.put("growthStageBbch", entry.getGrowthStageBbch() != null ? entry.getGrowthStageBbch() : "");
         result.put("tags", entry.getTags() != null ? entry.getTags() : "");

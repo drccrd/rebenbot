@@ -45,24 +45,15 @@ public class VineyardLogEntry {
     @JoinColumn(name = "disease_id")
     private FungalDisease disease;
 
-    @Column(name = "dosage_liters_per_are")
-    private Double dosageLitersPerAre;
-
     @Column(name = "amount_fungicide_applied_liters")
     private Double amountFungicideAppliedLiters;
-
-    @Column(name = "efficacy_assessment")
-    private Double efficacyAssessment;
-
-    @Column(name = "efficacy_notes", length = 500)
-    private String efficacyNotes;
 
     // ==== General fields (for all log types) ====
     @Column(name = "title", length = 255)
     private String title;
 
-    @Column(name = "description", columnDefinition = "TEXT")
-    private String description;
+    @Column(name = "notes", columnDefinition = "TEXT")
+    private String notes;
 
     @Column(name = "growth_stage_bbch")
     private String growthStageBbch;

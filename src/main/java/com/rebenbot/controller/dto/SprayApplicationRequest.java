@@ -24,7 +24,6 @@ public class SprayApplicationRequest {
     @NotNull(message = "Application date is required")
     private LocalDateTime applicationDate;
 
-    @NotBlank(message = "Growth stage BBCH code is required")
     @Size(max = 10, message = "BBCH code must not exceed 10 characters")
     private String growthStageBbch;
 

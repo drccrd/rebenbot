@@ -6,7 +6,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -21,19 +20,16 @@ public class VineyardLoggingService {
     private final VineyardRepository vineyardRepository;
     private final FungicideProductRepository fungicideProductRepository;
     private final FungalDiseaseRepository diseaseRepository;
-    private final InfectionRiskRepository infectionRiskRepository;
 
     public VineyardLoggingService(
             VineyardLogEntryRepository logRepository,
             VineyardRepository vineyardRepository,
             FungicideProductRepository fungicideProductRepository,
-            FungalDiseaseRepository diseaseRepository,
-            InfectionRiskRepository infectionRiskRepository) {
+            FungalDiseaseRepository diseaseRepository) {
         this.logRepository = logRepository;
         this.vineyardRepository = vineyardRepository;
         this.fungicideProductRepository = fungicideProductRepository;
         this.diseaseRepository = diseaseRepository;
-        this.infectionRiskRepository = infectionRiskRepository;
     }
 
     /**
@@ -76,21 +72,18 @@ public class VineyardLoggingService {
         FungalDisease disease = diseaseRepository.findById(diseaseId)
                 .orElseThrow(() -> new RuntimeException("Disease not found: " + diseaseId));
 
-        double dosageLitersPerAre = calculateDosage(fungicideProduct, vineyard.getSizeAres(), growthStageBbch);
-
         VineyardLogEntry logEntry = VineyardLogEntry.builder()
                 .vineyard(vineyard)
                 .logType(VineyardLogEntry.LogType.SPRAY)
                 .entryDate(applicationDate)
                 .fungicideProduct(fungicideProduct)
                 .disease(disease)
-                .dosageLitersPerAre(dosageLitersPerAre)
                 .amountFungicideAppliedLiters(amountFungicideAppliedLiters)
                 .growthStageBbch(growthStageBbch)
                 .temperatureC(temperatureC)
                 .humidityPercent(humidityPercent)
                 .windSpeedMsec(windSpeedMsec)
-                .description(notes)
+                .notes(notes)
                 .build();
 
         VineyardLogEntry saved = logRepository.save(logEntry);
@@ -115,10 +108,13 @@ public class VineyardLoggingService {
     }
 
     /**
-     * Get recent sprays (last 7 days).
+     * Get recent sprays (last 10 applications regardless of date).
      */
     public List<VineyardLogEntry> getRecentSprays(Long vineyardId) {
-        return getSprayHistory(vineyardId, 7);
+        return logRepository.findByVineyardIdAndLogTypeOrderByEntryDateDesc(vineyardId, VineyardLogEntry.LogType.SPRAY)
+                .stream()
+                .limit(10)
+                .collect(Collectors.toList());
     }
 
     /**
@@ -131,49 +127,6 @@ public class VineyardLoggingService {
                         spray -> spray.getFungicideProduct().getName(),
                         Collectors.summingInt(s -> 1)
                 ));
-    }
-
-    /**
-     * Assess spray effectiveness.
-     */
-    public void assessSprayEffectiveness(VineyardLogEntry logEntry) {
-        if (logEntry.getLogType() != VineyardLogEntry.LogType.SPRAY) {
-            return;
-        }
-
-        List<InfectionRisk> risks = infectionRiskRepository.findByDiseaseId(logEntry.getDisease().getId()).stream()
-                .sorted(Comparator.comparing((InfectionRisk r) -> 
-                        Math.abs(ChronoUnit.HOURS.between(r.getAssessedAt(), logEntry.getEntryDate()))))
-                .limit(5)
-                .collect(Collectors.toList());
-
-        if (!risks.isEmpty()) {
-            InfectionRisk closest = risks.get(0);
-            double riskAtSpray = closest.getRiskScore();
-            
-            List<InfectionRisk> afterSpray = infectionRiskRepository.findByDiseaseIdAndAssessedAtAfter(
-                    logEntry.getDisease().getId(),
-                    logEntry.getEntryDate()).stream()
-                    .filter(r -> r.getAssessedAt().isBefore(logEntry.getEntryDate().plusHours(72)))
-                    .sorted(Comparator.comparing(InfectionRisk::getRiskScore).reversed())
-                    .limit(1)
-                    .collect(Collectors.toList());
-
-            double peakRiskAfterSpray = afterSpray.isEmpty() ? 0 : afterSpray.get(0).getRiskScore();
-            
-            double effectiveness = Math.max(riskAtSpray, peakRiskAfterSpray * 0.8);
-            effectiveness = Math.min(1.0, effectiveness);
-            
-            logEntry.setEfficacyAssessment(effectiveness);
-            logEntry.setEfficacyNotes(String.format(
-                    "Risk at spray: %.0f%%, Peak following 72h: %.0f%%",
-                    riskAtSpray * 100, peakRiskAfterSpray * 100));
-            
-            log.debug("Assessed spray effectiveness: {}% (risk at spray: {}%)", 
-                    (int)(effectiveness * 100), (int)(riskAtSpray * 100));
-            
-            logRepository.save(logEntry);
-        }
     }
 
     // ==================== DIARY ENTRY METHODS ====================
@@ -192,7 +145,7 @@ public class VineyardLoggingService {
                 .logType(VineyardLogEntry.LogType.valueOf(diaryEntryType.name()))
                 .entryDate(entryDate)
                 .title(title)
-                .description(description)
+                .notes(description)
                 .diaryEntryType(diaryEntryType)
                 .growthStageBbch(growthStageBbch)
                 .tags(tags)
@@ -254,7 +207,7 @@ public class VineyardLoggingService {
                 .orElseThrow(() -> new RuntimeException("Log entry not found: " + entryId));
 
         logEntry.setTitle(title);
-        logEntry.setDescription(description);
+        logEntry.setNotes(description);
         logEntry.setDiaryEntryType(diaryEntryType);
         logEntry.setGrowthStageBbch(growthStageBbch);
         logEntry.setTags(tags);

@@ -385,8 +385,8 @@
 
                 <div class="form-row">
                   <div class="form-group">
-                    <label for="amount">Fungicide Amount Applied (liters)</label>
-                    <input id="amount" type="number" v-model.number="newSpray.amountFungicideAppliedLiters" step="0.01" min="0.01" placeholder="Min 0.01 L (10ml)" />
+                    <label for="amount">Fungicide Amount Applied (liters) <span class="required">*</span></label>
+                    <input id="amount" type="number" v-model.number="newSpray.amountFungicideAppliedLiters" step="0.01" min="0.01" placeholder="Min 0.01 L (10ml)" required />
                   </div>
                 </div>
               </template>
@@ -450,24 +450,20 @@
 
           <!-- Recent Sprays -->
           <div class="recent-sprays-card" v-if="recentSprays.length > 0">
-            <h3>📋 Recent Applications (Last 7 Days)</h3>
+            <h3>📋 Recent Applications (Last 10)</h3>
             <div class="sprays-list">
               <div v-for="spray in recentSprays" :key="spray.id" class="spray-item">
                 <div class="spray-header">
                   <span class="spray-fungicide">{{ spray.fungicide }}</span>
-                  <span class="spray-date">{{ spray.applicationDate }}</span>
+                  <span class="spray-date">{{ formatDateTime(spray.applicationDate) }}</span>
                 </div>
                 <div class="spray-info">
                   <span class="info-label">Disease:</span>
                   <span class="info-value">{{ spray.disease }}</span>
                 </div>
-                <div class="spray-info" v-if="spray.dosageLitersPerAre !== 'N/A'">
-                  <span class="info-label">Dosage:</span>
-                  <span class="info-value">{{ spray.dosageLitersPerAre }}L/are</span>
-                </div>
-                <div class="spray-info" v-if="spray.efficacyAssessment !== 'Pending'">
-                  <span class="info-label">Effectiveness:</span>
-                  <span class="info-value">{{ spray.efficacyAssessment }}</span>
+                <div class="spray-info" v-if="spray.amountAppliedLiters != null">
+                  <span class="info-label">Amount applied:</span>
+                  <span class="info-value">{{ spray.amountAppliedLiters }}L</span>
                 </div>
                 <div class="spray-info" v-if="spray.notes">
                   <span class="info-label">Notes:</span>
@@ -1595,11 +1591,13 @@ export default {
           return 'Invalid date'
         }
         
-        return date.toLocaleString(undefined, { 
-          month: 'short', 
-          day: 'numeric', 
+        return date.toLocaleString('de-DE', { 
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
           hour: '2-digit', 
-          minute: '2-digit'
+          minute: '2-digit',
+          hour12: false
         })
       } catch (e) {
         console.warn('Error parsing date:', isoString, e)
@@ -1646,8 +1644,9 @@ export default {
     async fetchFungicides() {
       try {
         const response = await axios.get('/api/v1/fungicides/all')
-        if (Array.isArray(response.data)) {
-          this.fungicides = response.data
+        const data = response.data?.fungicides ?? response.data
+        if (Array.isArray(data)) {
+          this.fungicides = data.slice().sort((a, b) => a.name.localeCompare(b.name, 'de'))
         }
       } catch (err) {
         console.warn('Failed to fetch fungicides:', err)
@@ -1767,7 +1766,7 @@ export default {
           date = new Date(dateValue)
         }
         if (isNaN(date.getTime())) return 'Invalid date'
-        return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+        return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
       } catch (e) {
         return 'Invalid date'
       }
@@ -1780,8 +1779,8 @@ export default {
       }
     },
     async recordSpray() {
-      if (!this.newSpray.fungicideId || !this.newSpray.diseaseId || !this.newSpray.applicationDate) {
-        alert('Please fill in all required fields')
+      if (!this.newSpray.fungicideId || !this.newSpray.diseaseId || !this.newSpray.applicationDate || !this.newSpray.amountFungicideAppliedLiters) {
+        alert('Please fill in all required fields (fungicide, disease, date, amount)')
         return
       }
 
@@ -1796,7 +1795,7 @@ export default {
           temperatureC: this.newSpray.temperatureC,
           humidityPercent: this.newSpray.humidityPercent,
           windSpeedMsec: this.newSpray.windSpeedMsec,
-          amountFungicideAppliedLiters: this.newSpray.amountFungicideAppliedLiters || null,
+          amountFungicideAppliedLiters: this.newSpray.amountFungicideAppliedLiters,
           notes: this.newSpray.notes
         }
 
