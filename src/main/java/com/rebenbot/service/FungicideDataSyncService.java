@@ -290,15 +290,13 @@ public class FungicideDataSyncService {
                                 .map(BvlKultur::awgId)
                                 .collect(Collectors.toSet());
                         if (!vitviAwgIds.isEmpty()) {
-                            List<BvlAwg> awgList = fetchAwgListForKennr(product.getBvlRegistrationNumber());
-                            awgList.stream()
-                                    .filter(a -> vitviAwgIds.contains(a.awgId())
-                                            && a.mittelaufwand() != null && a.mittelaufwand() > 0)
-                                    .mapToDouble(BvlAwg::mittelaufwand)
+                            List<BvlAufwand> aufwandList = fetchAufwandForKennr(product.getBvlRegistrationNumber());
+                            aufwandList.stream()
+                                    .filter(a -> vitviAwgIds.contains(a.awgId()) && "LH".equals(a.mAufwandEinheit())
+                                            && a.mAufwand() != null && a.mAufwand() > 0)
+                                    .mapToDouble(BvlAufwand::mAufwand)
                                     .min()
-                                    .ifPresent(lHa -> {
-                                        product.setBaseDosageMlHa(lHa * 1000);
-                                    });
+                                    .ifPresent(lHa -> product.setBaseDosageMlHa(lHa * 1000));
                             if (product.getBaseDosageMlHa() != null) {
                                 log.debug("Dosage resolved for '{}' → {} mL/ha",
                                         product.getName(), product.getBaseDosageMlHa());
@@ -621,13 +619,14 @@ public class FungicideDataSyncService {
                     .min()
                     .ifPresent(product::setPhiDays);
 
-            // Derive baseDosageMlHa from BVL AWG mittelaufwand for VITVI uses.
-            // BVL stores dosage in L/ha; convert to mL/ha (* 1000) and take the minimum
+            // Derive baseDosageMlHa from BVL awg_aufwand for VITVI uses.
+            // BVL stores dosage in L/ha (unit "LH"); convert to mL/ha (* 1000) and take the minimum
             // across VITVI AWG records as the conservative labeled rate.
-            List<BvlAwg> awgList = fetchAwgListForKennr(kennr);
-            awgList.stream()
-                    .filter(a -> vitviAwgIds.contains(a.awgId()) && a.mittelaufwand() != null && a.mittelaufwand() > 0)
-                    .mapToDouble(BvlAwg::mittelaufwand)
+            List<BvlAufwand> aufwandList = fetchAufwandForKennr(kennr);
+            aufwandList.stream()
+                    .filter(a -> vitviAwgIds.contains(a.awgId()) && "LH".equals(a.mAufwandEinheit())
+                            && a.mAufwand() != null && a.mAufwand() > 0)
+                    .mapToDouble(BvlAufwand::mAufwand)
                     .min()
                     .ifPresent(lHa -> product.setBaseDosageMlHa(lHa * 1000));
 
@@ -719,6 +718,29 @@ public class FungicideDataSyncService {
     }
 
     @SuppressWarnings("unchecked")
+    private List<BvlAufwand> fetchAufwandForKennr(String kennr) {
+        try {
+            String q = "{\"AWG_ID\":{\"$instr\":\"" + kennr + "/\"}}";
+            String uri = bvlApiBaseUrl + "/awg_aufwand/?q="
+                    + URLEncoder.encode(q, StandardCharsets.UTF_8) + "&limit=500";
+            Map<String, Object> response = bvlWebClient.get().uri(URI.create(uri)).retrieve()
+                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                    .timeout(Duration.ofSeconds(bvlTimeoutSeconds)).block();
+            if (response == null) return List.of();
+            List<Map<String, Object>> items = (List<Map<String, Object>>) response.get("items");
+            if (items == null) return List.of();
+            return items.stream().map(i -> new BvlAufwand(
+                    (String) i.get("awg_id"),
+                    i.get("m_aufwand") != null ? ((Number) i.get("m_aufwand")).doubleValue() : null,
+                    (String) i.get("m_aufwand_einheit")
+            )).collect(Collectors.toList());
+        } catch (Exception e) {
+            log.debug("BVL /awg_aufwand/ fetch failed for kennr '{}': {}", kennr, e.getMessage());
+            return List.of();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
     private List<BvlWartezeit> fetchWartezeitForKennrAndKultur(String kennr, String kultur) {
         try {
             String q = "{\"AWG_ID\":{\"$instr\":\"" + kennr + "/\"},\"KULTUR\":\"" + kultur + "\"}";
@@ -732,7 +754,10 @@ public class FungicideDataSyncService {
             if (items == null) return List.of();
             return items.stream().map(i -> {
                 Number phi = (Number) i.get("gesetzt_wartezeit");
-                return new BvlWartezeit((String) i.get("awg_id"), phi != null ? phi.intValue() : null);
+                // "XF" in gesetzt_wartezeit_bem means "keine Wartezeit erforderlich" (no waiting period)
+                Integer phiDays = phi != null ? phi.intValue()
+                        : "XF".equals(i.get("gesetzt_wartezeit_bem")) ? 0 : null;
+                return new BvlWartezeit((String) i.get("awg_id"), phiDays);
             }).collect(Collectors.toList());
         } catch (Exception e) {
             log.debug("BVL /awg_wartezeit/ fetch failed for kennr '{}': {}", kennr, e.getMessage());
@@ -957,6 +982,8 @@ public class FungicideDataSyncService {
     record BvlMittel(String kennr, String mittelname, LocalDate zulEnde) {}
 
     record BvlAwg(String awgId, String kennr, Double mittelaufwand, Integer maxApplications, String wirkungsbereich) {}
+
+    record BvlAufwand(String awgId, Double mAufwand, String mAufwandEinheit) {}
 
     record BvlKultur(String awgId, String kultur, String ausgenommen) {}
 
