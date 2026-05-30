@@ -35,23 +35,6 @@ class SecurityIntegrationTest {
     @Autowired
     private MockMvc mockMvc;
 
-    /**
-     * One representative read endpoint per controller.
-     * The exact response body/status (200, 404, 400, …) is irrelevant here —
-     * we only care that the security layer behaves correctly.
-     */
-    private static final String[] PROTECTED_ENDPOINTS = {
-            "/v1/vineyards",
-            "/v1/diseases",
-            "/v1/fungicides",
-            "/v1/fungicide-management/latest-recommendations",
-            "/v1/growth-stage/current",
-            "/v1/wbi/prognosis/latest?disease=peronospora",
-            "/v1/wbi/incubation/active",
-            "/v1/wbi/pheno/latest",
-            "/v1/admin/sync/status",
-    };
-
     // -----------------------------------------------------------------------
     // Unauthenticated — all protected endpoints must return 401
     // -----------------------------------------------------------------------
