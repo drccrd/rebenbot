@@ -1,0 +1,6 @@
+# Test profile — overrides only what tests need.
+# Real credentials are NOT required in CI; @WithMockUser bypasses the UserDetailsService entirely.
+security:
+  api:
+    username: test-user
+    password: test-password

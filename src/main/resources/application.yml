@@ -34,6 +34,11 @@ server:
 cors:
   allowed-origin: "http://localhost:5173"
 
+security:
+  api:
+    username: ${REBENBOT_API_USER}
+    password: ${REBENBOT_API_PASSWORD}
+
 # Meteoblue API Configuration
 meteoblue:
   api:
