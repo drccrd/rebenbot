@@ -19,7 +19,7 @@
     "@vitejs/plugin-vue": "^5.0.0",
     "@vue/test-utils": "^2.4.11",
     "@vitest/coverage-v8": "^1.0.0",
-    "happy-dom": "^12.0.0",
+    "happy-dom": "^20.10.2",
     "vite": "^5.0.0",
     "vitest": "^1.0.0"
   }
