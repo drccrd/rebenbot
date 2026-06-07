@@ -2,11 +2,12 @@ package com.rebenbot.controller;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -49,11 +50,10 @@ class HealthControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser(roles = "USER")
     void protectedEndpoint_withCredentials_doesNotReturn401() throws Exception {
         // Any 2xx or 4xx other than 401/403 is acceptable — we just verify
         // the security layer lets the request through.
-        mockMvc.perform(get("/v1/vineyard").accept(MediaType.APPLICATION_JSON))
+        mockMvc.perform(get("/v1/vineyard").with(user("user").roles("USER")).accept(MediaType.APPLICATION_JSON))
                 .andExpect(result -> {
                     int status = result.getResponse().getStatus();
                     if (status == 401 || status == 403) {
