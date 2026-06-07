@@ -7,14 +7,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
-import com.rebenbot.MockMvcSecurityConfig;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -31,7 +29,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@Import(MockMvcSecurityConfig.class)
 @ActiveProfiles("test")
 class SecurityIntegrationTest {
 
@@ -76,10 +73,9 @@ class SecurityIntegrationTest {
             "/v1/wbi/pheno/latest",
             "/v1/admin/sync/status",
     })
-    @WithMockUser(roles = "USER")
     @DisplayName("Protected endpoint allows authenticated user")
     void protectedEndpoints_withCredentials_notRejected(String path) throws Exception {
-        mockMvc.perform(get(path).accept(MediaType.APPLICATION_JSON))
+        mockMvc.perform(get(path).with(user("user").roles("USER")).accept(MediaType.APPLICATION_JSON))
                 .andExpect(result -> {
                     int status = result.getResponse().getStatus();
                     if (status == 401 || status == 403) {
