@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -71,7 +72,7 @@ public interface WeatherDataRepository extends JpaRepository<WeatherData, Long> 
      * Get all distinct dates with weather data in a time range.
      */
     @Query(value = "SELECT DISTINCT CAST(w.recorded_at AS DATE) FROM weather_data w WHERE w.recorded_at >= :startTime AND w.recorded_at < :endTime ORDER BY CAST(w.recorded_at AS DATE)", nativeQuery = true)
-    List<String> findDistinctWeatherDates(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
+    List<LocalDate> findDistinctWeatherDates(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
 
     /**
      * Recent records for a specific vineyard — used for mean temperature calculation.

@@ -118,9 +118,9 @@ public class GrowthStageService {
     public double calculateAccumulatedGdd(LocalDate toDate) {
         LocalDateTime springStart = LocalDateTime.of(toDate.getYear(), 4, 1, 0, 0);
         LocalDateTime endOfDay = LocalDateTime.of(toDate, java.time.LocalTime.of(23, 59, 59));
-        List<String> dateStrings = weatherDataRepository.findDistinctWeatherDates(springStart, endOfDay);
+        List<java.time.LocalDate> dates = weatherDataRepository.findDistinctWeatherDates(springStart, endOfDay);
 
-        if (dateStrings.isEmpty()) {
+        if (dates.isEmpty()) {
             log.warn("No weather data available for GDD calculation between {} and {}", springStart, endOfDay);
             return 0.0;
         }
@@ -128,8 +128,7 @@ public class GrowthStageService {
         double totalGdd = 0.0;
         final double BASE_TEMP = 10.0;
 
-        for (String dateStr : dateStrings) {
-            java.time.LocalDate date = java.time.LocalDate.parse(dateStr);
+        for (java.time.LocalDate date : dates) {
             LocalDateTime dateTime = date.atStartOfDay();
             Optional<Double> avgTemp = weatherDataRepository.findAverageTempForDate(dateTime);
             
