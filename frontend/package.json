@@ -16,7 +16,7 @@
     "axios": "^1.17.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^5.0.0",
+    "@vitejs/plugin-vue": "^6.0.0",
     "@vue/test-utils": "^2.4.11",
     "@vitest/coverage-v8": "^4.1.8",
     "happy-dom": "^20.10.2",
