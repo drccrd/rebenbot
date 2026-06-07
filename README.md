@@ -6,10 +6,10 @@ Vineyard management assistant for monitoring fungal disease pressure and optimis
 
 ## Tech Stack
 
-- **Backend:** Spring Boot 3.4.0, Java 21, Spring Data JPA, Lombok
+- **Backend:** Spring Boot, Java 21, Spring Data JPA, Lombok
 - **Database:** H2 (embedded, default) or PostgreSQL (Docker, `postgres` profile)
 - **Migrations:** Flyway
-- **Build:** Maven 3.9.9+
+- **Build:** Maven
 - **Frontend:** Vue 3 + Vite (in `frontend/`)
 - **External data:** Meteoblue API (weather), BVL PSM-API (fungicide approvals), vitimeteo-bw.de (WBI prognosis)
 
@@ -39,7 +39,7 @@ rebenbot/
 ### Prerequisites
 
 - Java 21 JDK
-- Maven 3.9.9+
+- Maven
 - Docker & Docker Compose (optional — only needed for PostgreSQL)
 - Meteoblue API key (optional — free tier: 5,000 calls/year at meteoblue.com)
 
